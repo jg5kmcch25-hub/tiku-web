@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>题库答题</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="更换主题">主题</button>
+  <div id="theme-panel" class="theme-panel hidden"></div>
+
+  <div id="app">
+
+    <!-- ======= 首页：导入题库 ======= -->
+    <section id="home-view" class="view">
+      <div class="hero">
+        <p class="badge">本地题库 · 错题本 · 书架</p>
+        <h1>题库答题</h1>
+        <p>把题库文件拖进文件夹，马上生成答题页</p>
+      </div>
+
+      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="上传题库文件">
+        <div class="folder">
+          <div class="folder-tab"></div>
+          <div class="folder-body">
+            <div class="paper"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="drop-hint">
+          <strong>把题库拖进来</strong>
+          <span>或点击选择文件 · 支持新建书本或追加到已有书本</span>
+        </div>
+        <input type="file" id="file-input" accept=".json,.csv,.txt" hidden />
+      </div>
+
+      <div class="home-actions">
+        <button id="btn-sample" class="btn btn-primary" type="button">试试示例题库</button>
+        <button id="btn-weekly" class="btn btn-ghost" type="button">本周测验</button>
+        <button id="btn-paste" class="btn btn-ghost" type="button">粘贴题目文本</button>
+        <label class="shuffle-toggle">
+          <input type="checkbox" id="shuffle-options" /> 打乱选项顺序
+        </label>
+      </div>
+
+      <div class="library-entry">
+        <button id="btn-goto-shelf" class="entry-card" type="button">
+          <span class="entry-emoji">📖</span>
+          <span class="entry-text">
+            <strong>我的书架</strong>
+            <small id="shelf-count">0 本书</small>
+          </span>
+        </button>
+        <button id="btn-goto-wrong" class="entry-card" type="button">
+          <span class="entry-emoji">📒</span>
+          <span class="entry-text">
+            <strong>错题本</strong>
+            <small id="wrong-count">0 题</small>
+          </span>
+        </button>
+      </div>
+
+      <div class="data-actions">
+        <button id="btn-backup" class="btn btn-ghost btn-small" type="button">💾 备份数据</button>
+        <button id="btn-restore" class="btn btn-ghost btn-small" type="button">📥 恢复备份</button>
+        <input type="file" id="restore-file-input" accept=".json,application/json" hidden />
+      </div>
+
+      <div id="study-panel" class="study-panel card hidden">
+        <h3 id="study-title" class="study-title">学习时长 · 每一本书</h3>
+        <div class="study-body">
+          <div id="study-pie" class="study-pie"></div>
+          <ul id="study-legend" class="study-legend"></ul>
+        </div>
+      </div>
+
+      <div id="paste-panel" class="paste-panel hidden">
+        <textarea id="paste-area" placeholder="在这里粘贴题目，每题之间空一行。例如：&#10;&#10;题目：中国的首都是哪座城市？&#10;A. 上海&#10;B. 北京&#10;C. 广州&#10;D. 深圳&#10;答案：B&#10;解析：北京是中华人民共和国的首都。"></textarea>
+        <div class="paste-actions">
+          <button id="btn-paste-start" class="btn btn-primary" type="button">开始答题</button>
+        </div>
+      </div>
+
+      <div id="book-name-panel" class="book-name-panel hidden">
+        <p>解析成功！这批题目放到哪里？</p>
+        <select id="book-target" class="book-target"></select>
+        <input id="book-name-input" type="text" maxlength="30" placeholder="新书的名字，例如：中国美术史" />
+        <div class="book-name-actions">
+          <button id="btn-book-save" class="btn btn-primary" type="button">保存到书架并答题</button>
+          <button id="btn-book-quick" class="btn btn-ghost" type="button">直接开始（不保存）</button>
+          <button id="btn-book-cancel" class="btn btn-ghost" type="button">取消</button>
+        </div>
+      </div>
+
+      <p id="home-error" class="error hidden"></p>
+    </section>
+
+    <!-- ======= 书架页 ======= -->
+    <section id="shelf-view" class="view">
+      <div class="page-header">
+        <h2>我的书架</h2>
+        <div class="page-actions">
+          <button id="btn-shelf-import" class="btn btn-ghost btn-small" type="button">导入新题库</button>
+          <button id="btn-shelf-home" class="btn btn-ghost btn-small" type="button">返回</button>
+        </div>
+      </div>
+      <div id="shelf-list" class="shelf-list"></div>
+      <p id="shelf-empty" class="empty-hint hidden">书架上还没有书，<a href="#" id="shelf-empty-link">去导入一个题库</a>吧</p>
+    </section>
+
+    <!-- ======= 错题本页 ======= -->
+    <section id="wrongbook-view" class="view">
+      <div class="page-header">
+        <h2>错题本</h2>
+        <div class="page-actions">
+          <button id="btn-wrong-start" class="btn btn-primary btn-small" type="button">练习错题</button>
+          <button id="btn-wrong-clear" class="btn btn-ghost btn-small" type="button">清空</button>
+          <button id="btn-wrong-home" class="btn btn-ghost btn-small" type="button">返回</button>
+        </div>
+      </div>
+      <div id="wrongbook-list" class="wrongbook-list"></div>
+      <p id="wrongbook-empty" class="empty-hint hidden">还没有错题，答错的题会自动收集到这里</p>
+    </section>
+
+    <!-- ======= 答题页 ======= -->
+    <section id="quiz-view" class="view">
+      <div class="quiz-header">
+        <div class="progress">
+          <span id="quiz-source" class="quiz-source"></span>
+          <span id="progress-text" class="progress-text">第 1 / 1 题</span>
+          <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        </div>
+        <button id="btn-quit" class="btn btn-ghost btn-small" type="button">退出</button>
+      </div>
+
+      <div class="card question-card">
+        <h2 id="question-text" class="question-text"></h2>
+        <div id="options" class="options"></div>
+        <div id="explanation" class="explanation hidden">
+          <h3>解析</h3>
+          <p id="explanation-body"></p>
+        </div>
+      </div>
+
+      <div class="quiz-footer">
+        <span id="footer-hint" class="footer-hint">选完答案后，点「继续」查看解析</span>
+        <button id="btn-next" class="btn btn-primary btn-wide" type="button" disabled>继续</button>
+      </div>
+    </section>
+
+    <!-- ======= 结果页 ======= -->
+    <section id="result-view" class="view">
+      <div class="card result-card">
+        <p id="result-emoji" class="result-emoji"></p>
+        <h2>答题完成！</h2>
+        <div id="score-ring" class="score-ring">
+          <div class="score-inner">
+            <div id="score-text" class="score-big"></div>
+            <p class="rate-text">正确率 <span id="rate-text"></span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 id="wrong-title" class="wrong-title">错题回顾</h3>
+        <div id="wrong-list" class="wrong-list"></div>
+        <div class="result-actions">
+          <button id="btn-goto-wrongbook" class="btn btn-ghost" type="button">打开错题本</button>
+          <button id="btn-wrong-review" class="btn btn-primary hidden" type="button">再练错题</button>
+          <button id="btn-retry" class="btn btn-ghost" type="button">重做本套</button>
+          <button id="btn-reimport" class="btn btn-ghost" type="button">导入其他题库</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
