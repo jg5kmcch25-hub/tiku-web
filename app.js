@@ -798,7 +798,8 @@
       version: 1,
       exportedAt: new Date().toISOString(),
       books: loadBooks(),
-      wrongbook: loadWrong()
+      wrongbook: loadWrong(),
+      memorize: memoLoadStore()
     };
   }
 
@@ -847,7 +848,20 @@
         addedAt: w.addedAt || Date.now()
       });
     });
-    return { books, wrongbook };
+    const memorize = { books: [] };
+    const memoRaw = data.memorize;
+    if (memoRaw && Array.isArray(memoRaw.books)) {
+      memoRaw.books.forEach((b) => {
+        if (!b || typeof b.name !== "string") return;
+        memorize.books.push({
+          id: b.id || "memo" + Date.now(),
+          name: b.name,
+          tree: b.tree || null,
+          cards: b.cards && typeof b.cards === "object" ? b.cards : {}
+        });
+      });
+    }
+    return { books, wrongbook, memorize };
   }
 
   function downloadBackup() {
@@ -883,10 +897,14 @@
       }
       saveJSON(STORAGE.books, clean.books);
       saveJSON(STORAGE.wrong, clean.wrongbook);
+      saveJSON(MEMO_STORE_KEY, clean.memorize || { books: [] });
+      memoStore = null;
+      memoRendered = false;
       updateCounts();
       toast(
         "恢复成功：" + clean.books.length + " 本书 · " +
-        clean.wrongbook.length + " 道错题"
+        clean.wrongbook.length + " 道错题 · 背诵 " +
+        (clean.memorize ? clean.memorize.books.length : 0) + " 本"
       );
     };
     reader.onerror = () => toast("读取备份文件失败");
@@ -1431,6 +1449,66 @@
   let memoLeaves = [];
   let memoLeafIndex = 0;
   let memoRendered = false;
+  const MEMO_STORE_KEY = "memorize_knowledge_v1";
+  let memoStore = null;
+  let memoBook = null;
+  let memoCurKey = "";
+  let memoCurType = "term";
+  let memoCurNode = null;
+  let memoCurPath = null;
+  let memoImageDirty = null; // 编辑弹窗中暂存的图片（null 表示未改动）
+
+  function memoLoadStore() {
+    try {
+      const raw = localStorage.getItem(MEMO_STORE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { books: [] };
+  }
+  function memoSaveStore() {
+    try {
+      localStorage.setItem(MEMO_STORE_KEY, JSON.stringify(memoStore));
+      return true;
+    } catch (e) {
+      toast("保存失败：浏览器存储不可用");
+      return false;
+    }
+  }
+  function memoSeed() {
+    memoStore = memoLoadStore();
+    if (!Array.isArray(memoStore.books) || !memoStore.books.length) {
+      memoStore.books = [
+        {
+          id: "memo1",
+          name: MEMO_TREE.t,
+          tree: MEMO_TREE,
+          cards: {}
+        }
+      ];
+      memoSaveStore();
+    }
+    memoBook = memoStore.books[0];
+    if (!memoBook.cards) memoBook.cards = {};
+  }
+  function memoCardKey(node, path) {
+    return (path || []).slice(1).join("›") || node.t;
+  }
+  function memoGetCard(node, path) {
+    const key = memoCardKey(node, path);
+    if (!memoBook.cards[key]) memoBook.cards[key] = {};
+    return memoBook.cards[key];
+  }
+  function memoFilledCount() {
+    let n = 0;
+    Object.keys(memoBook.cards).forEach((k) => {
+      const c = memoBook.cards[k];
+      if (c.def || c.features || c.works || c.memory || c.points || c.cases || c.keywords || c.image) n++;
+    });
+    return n;
+  }
+  function memoUpdateFilled() {
+    $("memo-filled-count").textContent = memoFilledCount();
+  }
 
   function memoCardType(node) {
     if (node.c && node.c.length) return "frame";
@@ -1444,9 +1522,23 @@
     else memoLeaves.push({ title: node.t, path: p, node });
   }
 
-  function memoBuildBack(node, type) {
+  function memoBuildBack(node, type, card) {
     const t = node.t;
     const h = (title, html) => '<div class="memo-sec"><h4>' + title + "</h4>" + html + "</div>";
+    const empty = '<p class="memo-empty-note">还没有内容，点卡片右上角「✏️ 编辑」填写。</p>';
+    const para = (v) =>
+      v && v.trim()
+        ? "<p>" + escapeHTML(v.trim()).replace(/\n/g, "<br>") + "</p>"
+        : empty;
+    const lines = (v) => {
+      const arr = String(v || "")
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return arr.length
+        ? "<ul>" + arr.map((s) => "<li>" + escapeHTML(s) + "</li>").join("") + "</ul>"
+        : empty;
+    };
     if (type === "frame") {
       return h("包含知识点",
         '<ul class="memo-frame-list">' +
@@ -1455,22 +1547,27 @@
     }
     if (type === "essay") {
       return (
-        h("论点骨架", "<ul><li>论点一（占位）</li><li>论点二（占位）</li><li>论点三（占位）</li></ul>") +
-        h("论据与案例", "<p>· 案例 / 论据占位——正式版在这里放作品、人物与事件。</p>") +
-        h("关键词", "<p>· 关键词占位 · 关键词占位</p>")
+        h("论点骨架", lines(card.points)) +
+        h("论据与案例", para(card.cases)) +
+        h("关键词", para(card.keywords))
       );
     }
     return (
-      h("定义", "<p>这里是「" + escapeHTML(t) + "」的名词解释正文占位。正式版将展示定义、定位与核心观点。</p>") +
-      h("关键特征", "<ul><li>特征一（占位）</li><li>特征二（占位）</li><li>特征三（占位）</li></ul>") +
-      h("代表作品 / 人物", "<p>· 占位</p>") +
-      h("一句话记忆", "<p>「" + escapeHTML(t) + "」——一句话记忆占位。</p>")
+      h("定义", para(card.def)) +
+      h("关键特征", lines(card.features)) +
+      h("代表作品 / 人物", para(card.works)) +
+      h("一句话记忆", para(card.memory))
     );
   }
 
   function memoShowCard(node, path) {
     const type = memoCardType(node);
     const isFrame = type === "frame";
+    const card = isFrame ? {} : memoGetCard(node, path);
+    memoCurKey = memoCardKey(node, path);
+    memoCurType = type;
+    memoCurNode = node;
+    memoCurPath = path;
     const crumb = isFrame ? [node.t] : path.slice(1);
     $("memo-breadcrumb").innerHTML =
       crumb.slice(0, -1).map((s) => '<span>' + escapeHTML(s) + '</span><span class="memo-crumb-sep">/</span>').join("") +
@@ -1480,11 +1577,11 @@
       '">' + (type === "term" ? "名词解释" : type === "essay" ? "论述题" : "框架卡") + "</span>";
 
     $("memo-f-title").textContent = node.t;
-    $("memo-f-mono").textContent = (node.t.trim().charAt(0) || "?").toUpperCase();
     $("memo-b-title").textContent = node.t;
-    $("memo-b-body").innerHTML = memoBuildBack(node, type);
+    $("memo-b-body").innerHTML = memoBuildBack(node, type, card);
     const frameEl = $("memo-f-frame");
     const imgEl = $("memo-f-image");
+    $("memo-edit").style.display = isFrame ? "none" : "inline-flex";
     if (isFrame) {
       frameEl.classList.add("show");
       imgEl.style.display = "none";
@@ -1505,10 +1602,18 @@
       frameEl.classList.remove("show");
       frameEl.innerHTML = "";
       imgEl.style.display = "flex";
+      if (card.image) {
+        imgEl.innerHTML = '<img class="memo-card-img" src="' + card.image + '" alt="作品图" />';
+      } else {
+        imgEl.innerHTML =
+          '<div class="memo-monogram">' + (node.t.trim().charAt(0) || "?").toUpperCase() + "</div>" +
+          '<span class="memo-img-hint">作品图位 · 点「✏️ 编辑」上传</span>';
+      }
       $("memo-f-hint").textContent = "轻点卡片翻面 · 对照背面自测";
       $("memo-hint").textContent = "轻点卡片翻面 · 自评后自动进入下一张";
     }
     $("memo-flip").classList.remove("flipped");
+    memoUpdateFilled();
 
     $("memo-b-body").querySelectorAll("[data-memo-jump]").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -1614,6 +1719,7 @@
   function initMemorize() {
     if (memoRendered) return;
     memoRendered = true;
+    memoSeed();
     memoFlatten(MEMO_TREE, []);
     $("memo-leaf-count").textContent = memoLeaves.length;
     memoRenderTree();
@@ -1651,6 +1757,125 @@
       toast("已标记：「" + btn.dataset.rate + "」· 进入下一张");
       setTimeout(() => memoNextLeaf(1), 260);
     });
+  });
+
+  /* ---------- 背诵：编辑卡片 ---------- */
+  function memoOpenEdit() {
+    const card = memoBook.cards[memoCurKey] || (memoBook.cards[memoCurKey] = {});
+    memoImageDirty = null;
+    const field = (label, id, val, ph, rows) =>
+      '<label class="memo-field"><span>' + label + "</span>" +
+      '<textarea id="' + id + '" rows="' + rows + '" placeholder="' + ph + '">' + escapeHTML(val || "") + "</textarea></label>";
+    const input = (label, id, val, ph) =>
+      '<label class="memo-field"><span>' + label + "</span>" +
+      '<input id="' + id + '" type="text" placeholder="' + ph + '" value="' + escapeHTML(val || "") + '" /></label>';
+
+    let body = "";
+    if (memoCurType === "essay") {
+      body =
+        field("论点骨架（每行一个论点）", "memo-f-points", card.points, "论点一…\n论点二…", 5) +
+        field("论据与案例", "memo-f-cases", card.cases, "作品、人物、事件…", 4) +
+        input("关键词", "memo-f-keywords", card.keywords, "关键词A、关键词B");
+    } else {
+      body =
+        field("定义", "memo-f-def", card.def, "定义、定位、核心观点…", 5) +
+        field("关键特征（每行一个）", "memo-f-features", card.features, "特征一\n特征二", 4) +
+        field("代表作品 / 人物", "memo-f-works", card.works, "作品、人物…", 3) +
+        input("一句话记忆", "memo-f-memory", card.memory, "一句话记住它");
+    }
+    const imgPreview = card.image
+      ? '<img id="memo-edit-img-preview" src="' + card.image + '" alt="预览" />'
+      : '<div class="memo-img-placeholder" id="memo-edit-img-preview">还没有图片</div>';
+    body +=
+      '<div class="memo-img-edit"><span>作品图</span>' + imgPreview +
+      '<div class="memo-img-actions">' +
+      '<button type="button" id="memo-img-pick" class="memo-btn-ghost">选择图片</button>' +
+      (card.image ? '<button type="button" id="memo-img-remove" class="memo-btn-ghost">移除图片</button>' : "") +
+      "</div>" +
+      '<input type="file" id="memo-img-file" accept="image/*" hidden /></div>';
+
+    $("memo-edit-title").textContent = memoCurNode.t;
+    $("memo-edit-sub").textContent =
+      (memoCurType === "term" ? "名词解释" : "论述题") + " · 保存后自动生效";
+    $("memo-edit-body").innerHTML = body;
+    $("memo-edit-modal").classList.remove("hidden");
+
+    $("memo-img-pick").addEventListener("click", () => $("memo-img-file").click());
+    $("memo-img-file").addEventListener("change", (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (f.size > 3 * 1024 * 1024) {
+        toast("图片请小于 3MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        memoImageDirty = reader.result;
+        const box = $("memo-edit-img-preview");
+        if (box) {
+          const img = document.createElement("img");
+          img.src = reader.result;
+          img.alt = "预览";
+          img.id = "memo-edit-img-preview";
+          box.replaceWith(img);
+        }
+      };
+      reader.readAsDataURL(f);
+    });
+    const removeBtn = $("memo-img-remove");
+    if (removeBtn) {
+      removeBtn.addEventListener("click", () => {
+        memoImageDirty = "";
+        const box = $("memo-edit-img-preview");
+        if (box) {
+          const div = document.createElement("div");
+          div.className = "memo-img-placeholder";
+          div.id = "memo-edit-img-preview";
+          div.textContent = "还没有图片";
+          box.replaceWith(div);
+        }
+      });
+    }
+  }
+
+  function memoCloseEdit() {
+    $("memo-edit-modal").classList.add("hidden");
+    memoImageDirty = null;
+  }
+
+  function memoSaveEdit() {
+    const card = memoBook.cards[memoCurKey];
+    const val = (id) => {
+      const el = $(id);
+      return el ? el.value.trim() : "";
+    };
+    if (memoCurType === "essay") {
+      card.points = val("memo-f-points");
+      card.cases = val("memo-f-cases");
+      card.keywords = val("memo-f-keywords");
+    } else {
+      card.def = val("memo-f-def");
+      card.features = val("memo-f-features");
+      card.works = val("memo-f-works");
+      card.memory = val("memo-f-memory");
+    }
+    if (memoImageDirty !== null) card.image = memoImageDirty || null;
+    if (memoSaveStore()) {
+      memoCloseEdit();
+      memoShowCard(memoCurNode, memoCurPath);
+      toast("已保存 ✓");
+    }
+  }
+
+  $("memo-edit").addEventListener("click", (e) => {
+    e.stopPropagation();
+    memoOpenEdit();
+  });
+  $("memo-edit-save").addEventListener("click", memoSaveEdit);
+  $("memo-edit-cancel").addEventListener("click", memoCloseEdit);
+  $("memo-edit-close").addEventListener("click", memoCloseEdit);
+  $("memo-edit-modal").addEventListener("click", (e) => {
+    if (e.target === $("memo-edit-modal")) memoCloseEdit();
   });
 
   /* ============ 主题切换 ============ */

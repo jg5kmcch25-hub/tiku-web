@@ -213,7 +213,7 @@
             </div>
           </div>
           <nav id="memo-tree" class="memo-tree"></nav>
-          <div class="memo-sidebar-foot">共 <b id="memo-leaf-count"></b> 个知识点 · 轻点章节展开 / 收起</div>
+          <div class="memo-sidebar-foot">共 <b id="memo-leaf-count"></b> 个知识点 · 已填写 <b id="memo-filled-count">0</b> · 轻点章节展开 / 收起</div>
         </aside>
         <div id="memo-scrim" class="memo-scrim"></div>
         <section class="memo-stage">
@@ -221,6 +221,7 @@
           <div class="memo-cardwrap">
             <div id="memo-flip" class="memo-flip">
               <div class="memo-face memo-front">
+                <button id="memo-edit" class="memo-edit-btn" type="button">✏️ 编辑</button>
                 <div class="memo-f-title" id="memo-f-title"></div>
                 <div id="memo-f-frame" class="memo-f-frame"></div>
                 <div class="memo-f-image" id="memo-f-image">
@@ -243,6 +244,23 @@
           </div>
           <p class="memo-hint" id="memo-hint"></p>
         </section>
+      </div>
+
+      <div id="memo-edit-modal" class="memo-modal hidden">
+        <div class="memo-modal-card">
+          <div class="memo-modal-head">
+            <div class="memo-modal-head-text">
+              <div class="memo-modal-title" id="memo-edit-title"></div>
+              <div class="memo-modal-sub" id="memo-edit-sub"></div>
+            </div>
+            <button id="memo-edit-close" class="memo-modal-x" type="button">✕</button>
+          </div>
+          <div class="memo-modal-body" id="memo-edit-body"></div>
+          <div class="memo-modal-foot">
+            <button id="memo-edit-save" class="memo-modal-save" type="button">保存</button>
+            <button id="memo-edit-cancel" class="memo-modal-cancel" type="button">取消</button>
+          </div>
+        </div>
       </div>
     </section>
 
