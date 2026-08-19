@@ -7,7 +7,8 @@
     shelf: "shelf-view",
     wrongbook: "wrongbook-view",
     quiz: "quiz-view",
-    result: "result-view"
+    result: "result-view",
+    memorize: "memorize-view"
   };
   const STORAGE = { books: "quiz_books_v1", wrong: "quiz_wrongbook_v1" };
 
@@ -291,6 +292,10 @@
     });
     window.scrollTo({ top: 0 });
     if (name === "home") renderStudyChart();
+    if (name === "memorize") initMemorize();
+    document.body.classList.toggle("in-memo", name === "memorize");
+    document.body.classList.toggle("in-quiz", name === "quiz");
+    $("btn-switch").textContent = name === "memorize" ? "" : "📚 背诵板块";
   }
 
   /* ============ 首页：文件导入 ============ */
@@ -1418,6 +1423,234 @@
     fileInput.value = "";
     updateCounts();
     showView("home");
+  });
+
+  /* ============ 背诵板块：框架导图 + 知识卡片 ============ */
+  const MEMO_TREE = {"t":"世界现代设计史","c":[{"t":"第一章 现代设计概述","c":[{"t":"什么是设计"},{"t":"设计的分类和范畴"}]},{"t":"第二章 工业革命前的设计","c":[{"t":"工业革命前欧洲的设计情况"},{"t":"新古典设计运动"},{"t":"工业革命之前的西方民间产品设计"},{"t":"“维多利亚”和“第二帝国”风格"}]},{"t":"第三章 现代设计的前奏：“工艺美术”与“新艺术”运动","c":[{"t":"现代设计萌发的时代背景和促进因素"},{"t":"英国的设计改革和“工艺美术”运动"},{"t":"“新艺术”运动"}]},{"t":"第四章 带装饰的现代设计：“装饰艺术”运动","c":[{"t":"“装饰艺术”运动的概况"},{"t":"影响“装饰艺术”运动风格的重要因素"},{"t":"“装饰艺术”运动的设计特点"},{"t":"“装饰艺术”风格在平面设计上的发展"},{"t":"“装饰艺术”风格的产品设计和著名的设计师"}]},{"t":"第五章 现代主义设计运动的萌起","c":[{"t":"现代设计思想体系和先驱人物"},{"t":"包豪斯"},{"t":"俄国构成主义设计运动"},{"t":"荷兰的“风格派”运动"}]},{"t":"第六章 工业设计的兴起","c":[{"t":"美国工业设计发展的背景和概况"},{"t":"美国工业设计先驱人物"},{"t":"制造业对美国现代设计的影响"},{"t":"美国现代工业设计的重要推手——大型展览和博览会"}]},{"t":"第七章 消费时代的设计","c":[{"t":"战后重建时期的产品设计"},{"t":"工业设计体制的形成"},{"t":"工业设计在联邦德国的确立"},{"t":"美国战后工业产品设计——“世纪中叶”设计浪潮"},{"t":"批判设计理论的形成"},{"t":"人体工程学的发展"},{"t":"建筑上的“国际主义”风格"},{"t":"战后平面设计的发展"}]},{"t":"第八章 后现代主义设计运动","c":[{"t":"后现代主义设计运动的兴起"},{"t":"英国的波普设计运动"},{"t":"意大利的“激进设计”运动和后现代主义设计"},{"t":"后现代主义设计在其他各国的发展"}]},{"t":"第九章 当代汽车设计","c":[{"t":"概述"},{"t":"战前汽车设计发展概况"},{"t":"战后汽车发展"},{"t":"石油危机之后的汽车设计"},{"t":"各国重要车厂和汽车设计师"}]},{"t":"第十章 各国设计简史（之一）","c":[{"t":"美国当代设计"},{"t":"德国当代设计"},{"t":"英国当代设计"}]},{"t":"第十一章 各国设计简史（之二）","c":[{"t":"意大利现代设计"},{"t":"日本当代设计"},{"t":"北欧当代设计"}]}]};
+
+  let memoLeaves = [];
+  let memoLeafIndex = 0;
+  let memoRendered = false;
+
+  function memoCardType(node) {
+    if (node.c && node.c.length) return "frame";
+    if (/论述|影响|发展|对比|背景|概况|推动|促进|推手|体制|形成|兴起|改革/.test(node.t)) return "essay";
+    return "term";
+  }
+
+  function memoFlatten(node, path) {
+    const p = path.concat(node.t);
+    if (node.c && node.c.length) node.c.forEach((child) => memoFlatten(child, p));
+    else memoLeaves.push({ title: node.t, path: p, node });
+  }
+
+  function memoBuildBack(node, type) {
+    const t = node.t;
+    const h = (title, html) => '<div class="memo-sec"><h4>' + title + "</h4>" + html + "</div>";
+    if (type === "frame") {
+      return h("包含知识点",
+        '<ul class="memo-frame-list">' +
+        node.c.map((c) => '<li><button data-memo-jump="' + escapeHTML(c.t) + '" type="button">' + escapeHTML(c.t) + "</button></li>").join("") +
+        "</ul>");
+    }
+    if (type === "essay") {
+      return (
+        h("论点骨架", "<ul><li>论点一（占位）</li><li>论点二（占位）</li><li>论点三（占位）</li></ul>") +
+        h("论据与案例", "<p>· 案例 / 论据占位——正式版在这里放作品、人物与事件。</p>") +
+        h("关键词", "<p>· 关键词占位 · 关键词占位</p>")
+      );
+    }
+    return (
+      h("定义", "<p>这里是「" + escapeHTML(t) + "」的名词解释正文占位。正式版将展示定义、定位与核心观点。</p>") +
+      h("关键特征", "<ul><li>特征一（占位）</li><li>特征二（占位）</li><li>特征三（占位）</li></ul>") +
+      h("代表作品 / 人物", "<p>· 占位</p>") +
+      h("一句话记忆", "<p>「" + escapeHTML(t) + "」——一句话记忆占位。</p>")
+    );
+  }
+
+  function memoShowCard(node, path) {
+    const type = memoCardType(node);
+    const isFrame = type === "frame";
+    const crumb = isFrame ? [node.t] : path.slice(1);
+    $("memo-breadcrumb").innerHTML =
+      crumb.slice(0, -1).map((s) => '<span>' + escapeHTML(s) + '</span><span class="memo-crumb-sep">/</span>').join("") +
+      '<span class="memo-crumb-current">' + escapeHTML(crumb[crumb.length - 1]) + "</span>" +
+      '<span class="memo-type-tag ' +
+      (isFrame ? "memo-tag-frame" : type === "term" ? "memo-tag-term" : "memo-tag-essay") +
+      '">' + (type === "term" ? "名词解释" : type === "essay" ? "论述题" : "框架卡") + "</span>";
+
+    $("memo-f-title").textContent = node.t;
+    $("memo-f-mono").textContent = (node.t.trim().charAt(0) || "?").toUpperCase();
+    $("memo-b-title").textContent = node.t;
+    $("memo-b-body").innerHTML = memoBuildBack(node, type);
+    const frameEl = $("memo-f-frame");
+    const imgEl = $("memo-f-image");
+    if (isFrame) {
+      frameEl.classList.add("show");
+      imgEl.style.display = "none";
+      frameEl.innerHTML =
+        '<ul class="memo-frame-list">' +
+        node.c.map((c) => '<li><button data-memo-jump="' + escapeHTML(c.t) + '" type="button">' + escapeHTML(c.t) + "</button></li>").join("") +
+        "</ul>";
+      frameEl.querySelectorAll("[data-memo-jump]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const leaf = memoLeaves.find((l) => l.title === btn.dataset.memoJump);
+          if (leaf) memoSelectLeaf(leaf);
+        });
+      });
+      $("memo-f-hint").textContent = "框架卡 · 轻点条目跳转到对应知识点";
+      $("memo-hint").textContent = "框架卡：先看整体结构，再点条目进入细节";
+    } else {
+      frameEl.classList.remove("show");
+      frameEl.innerHTML = "";
+      imgEl.style.display = "flex";
+      $("memo-f-hint").textContent = "轻点卡片翻面 · 对照背面自测";
+      $("memo-hint").textContent = "轻点卡片翻面 · 自评后自动进入下一张";
+    }
+    $("memo-flip").classList.remove("flipped");
+
+    $("memo-b-body").querySelectorAll("[data-memo-jump]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const leaf = memoLeaves.find((l) => l.title === btn.dataset.memoJump);
+        if (leaf) memoSelectLeaf(leaf);
+      });
+    });
+  }
+
+  function memoSelectNode(node) {
+    document.querySelectorAll(".memo-row").forEach((r) => r.classList.remove("selected"));
+    const target = document.querySelector('.memo-row.memo-chapter[data-title="' + node.t + '"]');
+    if (target) target.classList.add("selected");
+    memoShowCard(node, [MEMO_TREE.t, node.t]);
+    memoCloseDrawer();
+  }
+
+  function memoSelectLeaf(leaf) {
+    memoLeafIndex = memoLeaves.indexOf(leaf);
+    document.querySelectorAll(".memo-row").forEach((r) => r.classList.remove("selected"));
+    const target = document.querySelector('.memo-row.memo-leaf[data-title="' + leaf.title + '"]');
+    if (target) {
+      target.classList.add("selected");
+      target.scrollIntoView({ block: "nearest" });
+    }
+    const chapterRow = document.querySelector('.memo-row.memo-chapter[data-title="' + leaf.path[1] + '"]');
+    if (chapterRow) {
+      const childList = chapterRow.parentElement.querySelector(".memo-children");
+      if (childList) childList.classList.remove("collapsed");
+      chapterRow.querySelector(".memo-chev").classList.add("open");
+    }
+    memoShowCard(leaf.node, leaf.path);
+    memoCloseDrawer();
+  }
+
+  function memoNextLeaf(step) {
+    const i = (memoLeafIndex + step + memoLeaves.length) % memoLeaves.length;
+    memoSelectLeaf(memoLeaves[i]);
+  }
+
+  function memoRenderTree() {
+    const root = $("memo-tree");
+    root.innerHTML = "";
+    const ul = document.createElement("ul");
+    const rootLi = document.createElement("li");
+    rootLi.innerHTML =
+      '<button class="memo-row memo-chapter memo-root" data-title="' + escapeHTML(MEMO_TREE.t) + '" type="button">' +
+      '<span class="memo-chev open">▶</span>' +
+      '<span class="memo-label">' + escapeHTML(MEMO_TREE.t) + "</span>" +
+      '<span class="memo-count">' + memoLeaves.length + "</span></button>";
+    const childWrap = document.createElement("div");
+    childWrap.className = "memo-children";
+    const cul = document.createElement("ul");
+    MEMO_TREE.c.forEach((chapter) => {
+      const li = document.createElement("li");
+      li.innerHTML =
+        '<button class="memo-row memo-chapter" data-title="' + escapeHTML(chapter.t) + '" type="button">' +
+        '<span class="memo-chev open">▶</span>' +
+        '<span class="memo-label">' + escapeHTML(chapter.t) + "</span>" +
+        '<span class="memo-count">' + (chapter.c ? chapter.c.length : 0) + "</span></button>";
+      const wrap = document.createElement("div");
+      wrap.className = "memo-children";
+      const cul2 = document.createElement("ul");
+      (chapter.c || []).forEach((leaf) => {
+        const lli = document.createElement("li");
+        lli.innerHTML =
+          '<button class="memo-row memo-leaf" data-title="' + escapeHTML(leaf.t) + '" type="button">' +
+          '<span class="memo-leaf-dot"></span>' +
+          '<span class="memo-label">' + escapeHTML(leaf.t) + "</span></button>";
+        lli.querySelector(".memo-leaf").addEventListener("click", () => {
+          const found = memoLeaves.find((l) => l.title === leaf.t);
+          if (found) memoSelectLeaf(found);
+        });
+        cul2.appendChild(lli);
+      });
+      wrap.appendChild(cul2);
+      li.querySelector(".memo-chapter").addEventListener("click", (e) => {
+        const ch = li.querySelector(".memo-chev");
+        if (e.target.closest(".memo-chev")) {
+          const collapsed = wrap.classList.toggle("collapsed");
+          ch.classList.toggle("open", !collapsed);
+          return;
+        }
+        wrap.classList.remove("collapsed");
+        ch.classList.add("open");
+        memoSelectNode(chapter);
+      });
+      li.appendChild(wrap);
+      cul.appendChild(li);
+    });
+    childWrap.appendChild(cul);
+    rootLi.appendChild(childWrap);
+    ul.appendChild(rootLi);
+    root.appendChild(ul);
+  }
+
+  function memoCloseDrawer() {
+    $("memo-sidebar").classList.remove("open");
+    $("memo-scrim").classList.remove("show");
+  }
+
+  function initMemorize() {
+    if (memoRendered) return;
+    memoRendered = true;
+    memoFlatten(MEMO_TREE, []);
+    $("memo-leaf-count").textContent = memoLeaves.length;
+    memoRenderTree();
+    memoSelectLeaf(memoLeaves[0]);
+  }
+
+  $("btn-goto-memo").addEventListener("click", () => showView("memorize"));
+  $("btn-switch").addEventListener("click", () => showView("memorize"));
+  $("btn-memo-home").addEventListener("click", () => showView("home"));
+  $("memo-expand-all").addEventListener("click", () => {
+    document.querySelectorAll(".memo-children").forEach((w) => w.classList.remove("collapsed"));
+    document.querySelectorAll(".memo-chev").forEach((c) => c.classList.add("open"));
+  });
+  $("memo-collapse-all").addEventListener("click", () => {
+    document.querySelectorAll(".memo-children").forEach((w, i) => {
+      if (i > 0) w.classList.add("collapsed");
+    });
+    document.querySelectorAll(".memo-chev").forEach((c) => c.classList.remove("open"));
+    const rootChev = document.querySelector(".memo-root .memo-chev");
+    if (rootChev) rootChev.classList.add("open");
+  });
+  $("memo-flip").addEventListener("click", (e) => {
+    if (e.target.closest("[data-memo-jump]")) return;
+    if (!$("memo-f-frame").classList.contains("show")) {
+      $("memo-flip").classList.toggle("flipped");
+    }
+  });
+  $("memo-drawer").addEventListener("click", () => {
+    $("memo-sidebar").classList.add("open");
+    $("memo-scrim").classList.add("show");
+  });
+  $("memo-scrim").addEventListener("click", memoCloseDrawer);
+  document.querySelectorAll(".memo-rate").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      toast("已标记：「" + btn.dataset.rate + "」· 进入下一张");
+      setTimeout(() => memoNextLeaf(1), 260);
+    });
   });
 
   /* ============ 主题切换 ============ */

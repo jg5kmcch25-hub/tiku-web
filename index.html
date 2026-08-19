@@ -8,6 +8,7 @@
 </head>
 <body>
   <button id="theme-toggle" class="theme-toggle" type="button" aria-label="更换主题">主题</button>
+  <button id="btn-switch" class="switch-btn" type="button">📚 背诵板块</button>
   <div id="theme-panel" class="theme-panel hidden"></div>
 
   <div id="app">
@@ -56,6 +57,13 @@
           <span class="entry-text">
             <strong>错题本</strong>
             <small id="wrong-count">0 题</small>
+          </span>
+        </button>
+        <button id="btn-goto-memo" class="entry-card" type="button">
+          <span class="entry-emoji">📚</span>
+          <span class="entry-text">
+            <strong>背诵板块</strong>
+            <small>框架导图 · 知识卡片</small>
           </span>
         </button>
       </div>
@@ -180,6 +188,61 @@
           <button id="btn-retry" class="btn btn-ghost" type="button">重做本套</button>
           <button id="btn-reimport" class="btn btn-ghost" type="button">导入其他题库</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ======= 背诵板块 ======= -->
+    <section id="memorize-view" class="view memorize-view">
+      <div class="memo-topbar">
+        <button id="btn-memo-home" class="btn btn-ghost btn-small" type="button">← 返回答题</button>
+        <button id="memo-drawer" class="memo-drawer-btn" type="button">☰ 目录</button>
+        <div class="memo-brand">
+          <span class="memo-brand-dot"></span>
+          <span class="memo-title">背诵板块</span>
+          <span class="memo-badge">正式版 · 开发中</span>
+        </div>
+        <span class="memo-review">今日待复习 <b id="memo-due-count">0</b></span>
+      </div>
+      <div class="memo-main">
+        <aside id="memo-sidebar" class="memo-sidebar">
+          <div class="memo-sidebar-head">
+            <span class="memo-sidebar-title">框架导图</span>
+            <div class="memo-sidebar-actions">
+              <button id="memo-expand-all" type="button">全部展开</button>
+              <button id="memo-collapse-all" type="button">收起</button>
+            </div>
+          </div>
+          <nav id="memo-tree" class="memo-tree"></nav>
+          <div class="memo-sidebar-foot">共 <b id="memo-leaf-count"></b> 个知识点 · 轻点章节展开 / 收起</div>
+        </aside>
+        <div id="memo-scrim" class="memo-scrim"></div>
+        <section class="memo-stage">
+          <div class="memo-breadcrumb" id="memo-breadcrumb"></div>
+          <div class="memo-cardwrap">
+            <div id="memo-flip" class="memo-flip">
+              <div class="memo-face memo-front">
+                <div class="memo-f-title" id="memo-f-title"></div>
+                <div id="memo-f-frame" class="memo-f-frame"></div>
+                <div class="memo-f-image" id="memo-f-image">
+                  <div class="memo-monogram" id="memo-f-mono"></div>
+                  <span class="memo-img-hint">作品图位 · 正式版放图</span>
+                </div>
+                <div class="memo-f-hint" id="memo-f-hint"></div>
+              </div>
+              <div class="memo-face memo-back">
+                <div class="memo-b-title" id="memo-b-title"></div>
+                <div id="memo-b-body"></div>
+                <div class="memo-b-hint">轻点回到正面</div>
+              </div>
+            </div>
+          </div>
+          <div class="memo-rates">
+            <button class="memo-rate memo-rate-forgot" type="button" data-rate="忘记"><span class="memo-r-dot"></span>忘记了</button>
+            <button class="memo-rate memo-rate-blur" type="button" data-rate="模糊"><span class="memo-r-dot"></span>模糊</button>
+            <button class="memo-rate memo-rate-remember" type="button" data-rate="记得"><span class="memo-r-dot"></span>记得</button>
+          </div>
+          <p class="memo-hint" id="memo-hint"></p>
+        </section>
       </div>
     </section>
 
