@@ -597,6 +597,23 @@ body::before {
   max-height: 260px;
   overflow-y: auto;
 }
+.weekly-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.weekly-btn {
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: transparent;
+  color: var(--accent-deep);
+  border-radius: 99px;
+  cursor: pointer;
+}
+.weekly-btn:hover {
+  background: var(--accent-soft);
+}
 .weekly-book {
   display: flex;
   align-items: center;
@@ -610,7 +627,15 @@ body::before {
 .weekly-book:hover {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
-.weekly-book input {
+.weekly-book-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+.weekly-book-main input {
   accent-color: var(--accent);
   width: 16px;
   height: 16px;
@@ -624,6 +649,28 @@ body::before {
 .weekly-book-count {
   color: var(--muted);
   font-size: 12.5px;
+}
+.weekly-cap-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: text;
+}
+.weekly-limit {
+  width: 58px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  outline: none;
+}
+.weekly-limit:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .weekly-summary {
   margin: 0 0 12px;

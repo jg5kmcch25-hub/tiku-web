@@ -366,6 +366,7 @@
   /* ============ 周测组卷：选书 + 随机抽题 ============ */
   const WEEKLY_LIMIT = 50;
   let weeklyBooks = [];
+  let weeklyState = {}; // bookId -> { checked, limit }，记住上次的选书设置
 
   function openWeeklyPanel() {
     weeklyBooks = loadBooks();
@@ -378,15 +379,54 @@
       $("weekly-panel").classList.remove("hidden");
       return;
     }
+    const toolbar = document.createElement("div");
+    toolbar.className = "weekly-toolbar";
+    toolbar.innerHTML =
+      '<button type="button" class="weekly-btn" id="weekly-all">全选</button>' +
+      '<button type="button" class="weekly-btn" id="weekly-none">全不选</button>';
+    list.appendChild(toolbar);
     weeklyBooks.forEach((b) => {
-      const label = document.createElement("label");
-      label.className = "weekly-book";
-      label.innerHTML =
-        '<input type="checkbox" class="weekly-check" value="' + b.id + '" checked />' +
+      const cap = Math.min(b.questions.length, WEEKLY_LIMIT);
+      const saved = weeklyState[b.id] || {};
+      const checked = saved.checked !== undefined ? saved.checked : true;
+      const limitVal = saved.limit || cap;
+      const row = document.createElement("div");
+      row.className = "weekly-book";
+      row.innerHTML =
+        '<label class="weekly-book-main">' +
+        '<input type="checkbox" class="weekly-check" value="' + b.id + '"' +
+        (checked ? " checked" : "") + " />" +
         '<span class="weekly-book-name">' + escapeHTML(b.name) + "</span>" +
-        '<span class="weekly-book-count">' + b.questions.length + " 题</span>";
-      label.querySelector("input").addEventListener("change", updateWeeklySummary);
-      list.appendChild(label);
+        '<span class="weekly-book-count">' + b.questions.length + " 题</span>" +
+        "</label>" +
+        '<label class="weekly-cap-group">' +
+        "<span>限抽</span>" +
+        '<input type="number" class="weekly-limit" min="1" max="' + cap + '" value="' + limitVal + '" />' +
+        "<span>题</span>" +
+        "</label>";
+      row.querySelector(".weekly-check").addEventListener("change", updateWeeklySummary);
+      const lim = row.querySelector(".weekly-limit");
+      lim.addEventListener("input", updateWeeklySummary);
+      lim.addEventListener("change", () => {
+        let v = parseInt(lim.value, 10);
+        if (!Number.isFinite(v) || v < 1) v = 1;
+        if (v > cap) v = cap;
+        lim.value = v;
+        updateWeeklySummary();
+      });
+      list.appendChild(row);
+    });
+    $("weekly-all").addEventListener("click", () => {
+      list.querySelectorAll(".weekly-check").forEach((cb) => {
+        cb.checked = true;
+      });
+      updateWeeklySummary();
+    });
+    $("weekly-none").addEventListener("click", () => {
+      list.querySelectorAll(".weekly-check").forEach((cb) => {
+        cb.checked = false;
+      });
+      updateWeeklySummary();
     });
     updateWeeklySummary();
     $("weekly-panel").classList.remove("hidden");
@@ -396,24 +436,58 @@
     const checks = Array.from(document.querySelectorAll(".weekly-check"));
     const checked = checks.filter((cb) => cb.checked);
     let total = 0;
+    let capped = 0;
     checked.forEach((cb) => {
       const b = weeklyBooks.find((x) => x.id === cb.value);
-      if (b) total += b.questions.length;
+      if (!b) return;
+      total += b.questions.length;
+      const row = cb.closest(".weekly-book");
+      const input = row && row.querySelector(".weekly-limit");
+      const raw = input ? parseInt(input.value, 10) : NaN;
+      const limit = Number.isFinite(raw) && raw > 0 ? raw : b.questions.length;
+      capped += Math.min(b.questions.length, limit);
     });
-    const pick = Math.min(total, WEEKLY_LIMIT);
+    const pick = Math.min(capped, WEEKLY_LIMIT);
     $("weekly-summary").textContent =
-      "已选 " + checked.length + " 本书 · 共 " + total +
-      " 题 · 随机抽 " + pick + " 题（上限 " + WEEKLY_LIMIT + " 题）";
-    $("btn-weekly-start").disabled = checked.length === 0;
+      "已选 " + checked.length + " 本书 · 共 " + total + " 题 · 限抽后最多 " + capped +
+      " 题 · 本次随机抽 " + pick + " 题（总上限 " + WEEKLY_LIMIT + " 题）";
+    $("btn-weekly-start").disabled = checked.length === 0 || pick === 0;
+
+    // 记住这次的选择，下次打开面板时还原
+    weeklyBooks.forEach((b) => {
+      const cb = document.querySelector('.weekly-check[value="' + b.id + '"]');
+      if (!cb) return;
+      const row = cb.closest(".weekly-book");
+      const input = row && row.querySelector(".weekly-limit");
+      const raw = input ? parseInt(input.value, 10) : NaN;
+      const limit =
+        Number.isFinite(raw) && raw > 0
+          ? raw
+          : Math.min(b.questions.length, WEEKLY_LIMIT);
+      weeklyState[b.id] = { checked: cb.checked, limit };
+    });
   }
 
   function startWeeklyQuiz() {
-    const ids = new Set(
-      Array.from(document.querySelectorAll(".weekly-check:checked")).map((cb) => cb.value)
-    );
     const pool = [];
     weeklyBooks.forEach((b) => {
-      if (ids.has(b.id)) pool.push.apply(pool, b.questions);
+      const cb = document.querySelector('.weekly-check[value="' + b.id + '"]');
+      if (!cb || !cb.checked) return;
+      const row = cb.closest(".weekly-book");
+      const input = row && row.querySelector(".weekly-limit");
+      const raw = input ? parseInt(input.value, 10) : NaN;
+      const limit = Math.min(
+        b.questions.length,
+        Number.isFinite(raw) && raw > 0 ? raw : b.questions.length
+      );
+      const qs = b.questions.slice();
+      for (let i = qs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = qs[i];
+        qs[i] = qs[j];
+        qs[j] = tmp;
+      }
+      pool.push.apply(pool, qs.slice(0, limit));
     });
     if (!pool.length) {
       toast("请先勾选至少一本书");
