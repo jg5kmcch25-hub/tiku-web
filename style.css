@@ -589,6 +589,54 @@ body::before {
 }
 .book-name-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 13px; }
 
+.weekly-books {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.weekly-book {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+}
+.weekly-book:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.weekly-book input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.weekly-book-name {
+  flex: 1;
+  color: var(--ink);
+  font-size: 14px;
+}
+.weekly-book-count {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.weekly-summary {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.weekly-empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* ---------- 书架 / 错题本 ---------- */
 .page-header {
   display: flex;

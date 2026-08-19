@@ -227,13 +227,14 @@
     panel.classList.remove("hidden");
     const total = books.reduce((s, b) => s + (b.studyTimeMs || 0), 0);
     $("study-title").textContent = "学习时长 · 共 " + formatDuration(total);
+    const theme = (document.body && document.body.dataset.theme) || "pink";
+    const palette = THEME_PALETTES[theme] || THEME_PALETTES.pink;
     let acc = 0;
-    const segs = books.map((b) => {
+    const segs = books.map((b, i) => {
       const from = (acc / total) * 360;
       acc += b.studyTimeMs || 0;
       const to = (acc / total) * 360;
-      const hue = Math.abs(hashCode(b.name)) % 360;
-      const color = "hsl(" + hue + ", 72%, 66%)";
+      const color = palette[i % palette.length];
       return { b, from, to, color };
     });
     $("study-pie").style.background =
@@ -359,12 +360,79 @@
   });
 
   $("btn-weekly").addEventListener("click", () => {
-    const qs = collectWeekQuestions();
-    if (!qs.length) {
-      toast("最近一周还没有新题");
+    openWeeklyPanel();
+  });
+
+  /* ============ 周测组卷：选书 + 随机抽题 ============ */
+  const WEEKLY_LIMIT = 50;
+  let weeklyBooks = [];
+
+  function openWeeklyPanel() {
+    weeklyBooks = loadBooks();
+    const list = $("weekly-books");
+    list.innerHTML = "";
+    if (!weeklyBooks.length) {
+      list.innerHTML = '<p class="weekly-empty">书架上还没有书，先去导入一个题库吧</p>';
+      $("weekly-summary").textContent = "";
+      $("btn-weekly-start").disabled = true;
+      $("weekly-panel").classList.remove("hidden");
       return;
     }
-    startQuiz(qs, "本周测验", "");
+    weeklyBooks.forEach((b) => {
+      const label = document.createElement("label");
+      label.className = "weekly-book";
+      label.innerHTML =
+        '<input type="checkbox" class="weekly-check" value="' + b.id + '" checked />' +
+        '<span class="weekly-book-name">' + escapeHTML(b.name) + "</span>" +
+        '<span class="weekly-book-count">' + b.questions.length + " 题</span>";
+      label.querySelector("input").addEventListener("change", updateWeeklySummary);
+      list.appendChild(label);
+    });
+    updateWeeklySummary();
+    $("weekly-panel").classList.remove("hidden");
+  }
+
+  function updateWeeklySummary() {
+    const checks = Array.from(document.querySelectorAll(".weekly-check"));
+    const checked = checks.filter((cb) => cb.checked);
+    let total = 0;
+    checked.forEach((cb) => {
+      const b = weeklyBooks.find((x) => x.id === cb.value);
+      if (b) total += b.questions.length;
+    });
+    const pick = Math.min(total, WEEKLY_LIMIT);
+    $("weekly-summary").textContent =
+      "已选 " + checked.length + " 本书 · 共 " + total +
+      " 题 · 随机抽 " + pick + " 题（上限 " + WEEKLY_LIMIT + " 题）";
+    $("btn-weekly-start").disabled = checked.length === 0;
+  }
+
+  function startWeeklyQuiz() {
+    const ids = new Set(
+      Array.from(document.querySelectorAll(".weekly-check:checked")).map((cb) => cb.value)
+    );
+    const pool = [];
+    weeklyBooks.forEach((b) => {
+      if (ids.has(b.id)) pool.push.apply(pool, b.questions);
+    });
+    if (!pool.length) {
+      toast("请先勾选至少一本书");
+      return;
+    }
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = pool[i];
+      pool[i] = pool[j];
+      pool[j] = tmp;
+    }
+    const picked = pool.slice(0, WEEKLY_LIMIT);
+    $("weekly-panel").classList.add("hidden");
+    startQuiz(picked, "周测组卷", "");
+  }
+
+  $("btn-weekly-start").addEventListener("click", startWeeklyQuiz);
+  $("btn-weekly-cancel").addEventListener("click", () => {
+    $("weekly-panel").classList.add("hidden");
   });
 
   $("btn-paste").addEventListener("click", () => {
@@ -1279,6 +1347,13 @@
   });
 
   /* ============ 主题切换 ============ */
+  const THEME_PALETTES = {
+    pink: ["#ff8fb2", "#ff5c8a", "#e5487a", "#ffc9d8", "#ff7ba9"],
+    mint: ["#5eead4", "#14b8a6", "#0d9488", "#7de0cf", "#2dd4bf"],
+    blue: ["#60a5fa", "#3b82f6", "#2563eb", "#93c5fd", "#818cf8"],
+    cream: ["#f59e0b", "#d97706", "#b45309", "#fbd58a", "#f0a13d"],
+    dark: ["#a78bfa", "#8b5cf6", "#7c3aed", "#c4b5fd", "#6d28d9"]
+  };
   const THEME_NAMES = {
     pink: "粉色",
     mint: "薄荷",
@@ -1311,6 +1386,7 @@
       b.classList.toggle("active", b.dataset.theme === name);
     });
     $("theme-panel").classList.add("hidden");
+    renderStudyChart();
   }
 
   $("theme-toggle").addEventListener("click", (e) => {

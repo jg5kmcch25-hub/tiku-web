@@ -36,7 +36,7 @@
 
       <div class="home-actions">
         <button id="btn-sample" class="btn btn-primary" type="button">试试示例题库</button>
-        <button id="btn-weekly" class="btn btn-ghost" type="button">本周测验</button>
+        <button id="btn-weekly" class="btn btn-ghost" type="button">周测组卷</button>
         <button id="btn-paste" class="btn btn-ghost" type="button">粘贴题目文本</button>
         <label class="shuffle-toggle">
           <input type="checkbox" id="shuffle-options" /> 打乱选项顺序
@@ -89,6 +89,16 @@
           <button id="btn-book-save" class="btn btn-primary" type="button">保存到书架并答题</button>
           <button id="btn-book-quick" class="btn btn-ghost" type="button">直接开始（不保存）</button>
           <button id="btn-book-cancel" class="btn btn-ghost" type="button">取消</button>
+        </div>
+      </div>
+
+      <div id="weekly-panel" class="book-name-panel hidden">
+        <p>周测组卷 · 从勾选的书里随机抽题</p>
+        <div id="weekly-books" class="weekly-books"></div>
+        <p id="weekly-summary" class="weekly-summary"></p>
+        <div class="book-name-actions">
+          <button id="btn-weekly-start" class="btn btn-primary" type="button">开始答题</button>
+          <button id="btn-weekly-cancel" class="btn btn-ghost" type="button">取消</button>
         </div>
       </div>
 
