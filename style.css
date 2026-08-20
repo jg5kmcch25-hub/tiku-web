@@ -759,6 +759,111 @@ body::before {
 }
 .empty-hint a { color: var(--accent); font-weight: 600; }
 
+/* ---------- 书架：选题答题 ---------- */
+.pick-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+.pick-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.pick-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.pick-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 750;
+  color: var(--ink);
+  word-break: break-all;
+}
+.pick-count {
+  align-self: flex-start;
+  font-size: 12.5px;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border-radius: 99px;
+  padding: 3px 11px;
+}
+.pick-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick-hint {
+  margin: 0 0 11px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 2px;
+  margin-bottom: 14px;
+}
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 12px;
+  background: var(--option-bg, var(--card));
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.pick-row:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.pick-row.checked {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.pick-check {
+  flex: none;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.pick-q {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pick-date {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--meta-bg);
+  border-radius: 99px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.pick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .wrongbook-list { display: flex; flex-direction: column; gap: 14px; }
 .entry-meta { font-size: 12px; color: var(--muted); margin-bottom: 7px; letter-spacing: .2px; }
 .entry-actions { margin-top: 12px; text-align: right; }

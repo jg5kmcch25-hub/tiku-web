@@ -23,6 +23,9 @@
   let lastBookId = "";
   let timerInterval = null;
   let sessionSeconds = 0;
+  let pickBook = null;
+  let pickOrder = "desc"; // desc = 最新优先，asc = 最早优先
+  let pickSelected = new Set();
 
   /* ============ 示例题库 ============ */
   const SAMPLE = {
@@ -689,6 +692,7 @@
         "</div>" +
         '<div class="book-actions">' +
         '<button class="btn btn-primary btn-small" data-act="start" type="button">开始答题</button>' +
+        '<button class="btn btn-ghost btn-small" data-act="pick" type="button">选题答题</button>' +
         '<button class="btn btn-ghost btn-small" data-act="append" type="button">追加题目</button>' +
         '<button class="btn btn-ghost btn-small" data-act="del" type="button">删除</button>' +
         "</div>";
@@ -707,6 +711,9 @@
         showView("home");
         toast("已选择《" + b.name + "》：导入的新题会自动追加进去");
       });
+      card.querySelector('[data-act="pick"]').addEventListener("click", () => {
+        openPickPanel(b);
+      });
       card.querySelector('[data-act="del"]').addEventListener("click", () => {
         if (confirm("确定删除《" + b.name + "》吗？删除后题库内容不会丢失，仍可重新导入。")) {
           deleteBook(b.id);
@@ -718,6 +725,118 @@
       list.appendChild(card);
     });
   }
+
+  /* ---------- 书架：按日期选题答题 ---------- */
+  function openPickPanel(book) {
+    if (!book.questions || !book.questions.length) {
+      toast("这本书里还没有题目");
+      return;
+    }
+    pickBook = book;
+    pickOrder = "desc";
+    pickSelected = new Set();
+    $("pick-book-name").textContent = "《" + book.name + "》· 选题答题";
+    $("shelf-list").classList.add("hidden");
+    $("shelf-empty").classList.add("hidden");
+    $("shelf-pick-panel").classList.remove("hidden");
+    renderPickPanel();
+  }
+
+  function closePickPanel() {
+    pickBook = null;
+    pickSelected = new Set();
+    $("shelf-pick-panel").classList.add("hidden");
+    $("shelf-list").classList.remove("hidden");
+    renderShelf();
+    updateCounts();
+  }
+
+  function pickSortedQuestions() {
+    const bookTime = pickBook.createdAt || Date.now();
+    return pickBook.questions.slice().sort((a, b) => {
+      const ta = a.addedAt || bookTime;
+      const tb = b.addedAt || bookTime;
+      return pickOrder === "desc" ? tb - ta : ta - tb;
+    });
+  }
+
+  function formatPickDate(ts) {
+    try {
+      return new Date(ts).toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function updatePickCount() {
+    const n = pickSelected.size;
+    $("pick-count").textContent = "已选 " + n + " 题";
+    const btn = $("btn-pick-start");
+    btn.disabled = n === 0;
+    btn.textContent = "开始答题（" + n + " 题）";
+  }
+
+  function renderPickPanel() {
+    const list = $("pick-list");
+    const qs = pickSortedQuestions();
+    list.innerHTML = "";
+    qs.forEach((q) => {
+      const row = document.createElement("div");
+      row.className = "pick-row" + (pickSelected.has(q) ? " checked" : "");
+      row.innerHTML =
+        '<input type="checkbox" class="pick-check"' +
+        (pickSelected.has(q) ? " checked" : "") + " />" +
+        '<span class="pick-q">' + escapeHTML(q.question) + "</span>" +
+        '<span class="pick-date">' + formatPickDate(q.addedAt || pickBook.createdAt) + "</span>";
+      const cb = row.querySelector(".pick-check");
+      const toggle = () => {
+        const isOn = cb.checked;
+        if (isOn) pickSelected.add(q);
+        else pickSelected.delete(q);
+        row.classList.toggle("checked", isOn);
+        updatePickCount();
+      };
+      row.addEventListener("click", (e) => {
+        if (e.target !== cb) cb.checked = !cb.checked;
+        toggle();
+      });
+      cb.addEventListener("change", toggle);
+      list.appendChild(row);
+    });
+    $("btn-pick-sort").textContent =
+      pickOrder === "desc" ? "按日期 · 最新优先" : "按日期 · 最早优先";
+    updatePickCount();
+  }
+
+  $("btn-pick-all").addEventListener("click", () => {
+    pickSortedQuestions().forEach((q) => pickSelected.add(q));
+    renderPickPanel();
+  });
+  $("btn-pick-none").addEventListener("click", () => {
+    pickSelected.clear();
+    renderPickPanel();
+  });
+  $("btn-pick-sort").addEventListener("click", () => {
+    pickOrder = pickOrder === "desc" ? "asc" : "desc";
+    renderPickPanel();
+  });
+  $("btn-pick-cancel").addEventListener("click", closePickPanel);
+  $("btn-pick-start").addEventListener("click", () => {
+    if (!pickBook || pickSelected.size === 0) {
+      toast("请先至少选择一道题");
+      return;
+    }
+    const picked = pickSortedQuestions().filter((q) => pickSelected.has(q));
+    const book = pickBook;
+    closePickPanel();
+    startQuiz(picked, book.name + " · 自选题", book.id);
+  });
 
   /* ============ 错题本 ============ */
   $("btn-goto-wrong").addEventListener("click", () => {
