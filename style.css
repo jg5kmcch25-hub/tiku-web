@@ -901,6 +901,260 @@ body::before {
   color: var(--red);
 }
 
+/* ---------- 知识点挖空 ---------- */
+.cloze-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.cloze-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto;
+}
+.cloze-brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px var(--accent-soft);
+  flex: none;
+}
+.cloze-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.cloze-badge {
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--accent-deep);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.cloze-review {
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+}
+.cloze-review b {
+  color: var(--accent-deep);
+  font-size: 14px;
+  margin: 0 2px;
+}
+
+.cloze-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.cloze-tab {
+  border: 1px solid var(--ghost-border);
+  background: var(--card);
+  color: var(--ghost-text);
+  border-radius: 99px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .15s, background .15s;
+}
+.cloze-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  font-weight: 600;
+}
+
+.cloze-panel { margin-top: 4px; }
+.cloze-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0;
+  align-items: center;
+}
+.cloze-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.cloze-text {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.75;
+  font-family: inherit;
+  background: var(--card);
+  color: var(--ink);
+  box-sizing: border-box;
+}
+.cloze-text:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.cloze-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0 10px;
+  flex-wrap: wrap;
+}
+.cloze-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 2px;
+  margin-bottom: 14px;
+}
+.cloze-preview-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 14px;
+  background: var(--card);
+  cursor: pointer;
+}
+.cloze-preview-row.checked {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.cloze-preview-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.cloze-preview-sentence {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--ink);
+}
+.cloze-blank {
+  display: inline-block;
+  min-width: 3.2em;
+  text-align: center;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 0 1px;
+  padding: 0 4px;
+}
+.cloze-preview-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cloze-answer-chip {
+  font-size: 11.5px;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 99px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.cloze-answer-chip:hover {
+  background: var(--rose-bg);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.cloze-shelf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cloze-book-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+.cloze-book-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.cloze-book-info .book-meta { align-self: flex-start; }
+
+.cloze-question { line-height: 2.1; }
+.cloze-input {
+  width: 8em;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 3px 8px;
+  margin: 0 3px;
+  font-size: 17px;
+  font-family: inherit;
+  text-align: center;
+  box-sizing: border-box;
+}
+.cloze-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.cloze-input.ok {
+  background: var(--green-bg);
+  border-bottom-color: var(--green);
+  color: var(--green);
+}
+.cloze-input.no {
+  background: var(--red-bg);
+  border-bottom-color: var(--red);
+  color: var(--red);
+}
+.cloze-correct {
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 700;
+  margin: 0 4px;
+  white-space: nowrap;
+}
+.cloze-result-msg {
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cloze-result-msg.ok { color: var(--green); }
+.cloze-result-msg.no { color: var(--red); }
+
 .wrongbook-list { display: flex; flex-direction: column; gap: 14px; }
 .entry-meta { font-size: 12px; color: var(--muted); margin-bottom: 7px; letter-spacing: .2px; }
 .entry-actions { margin-top: 12px; text-align: right; }
@@ -1181,6 +1435,14 @@ body.in-memo #theme-toggle {
   display: none;
 }
 .entry-card:nth-child(3) .entry-emoji { background: #e7efe8; }
+.entry-card:nth-child(4) .entry-emoji { background: #fdf0e0; }
+
+@media (max-width: 640px) {
+  .cloze-brand { margin: 0; }
+  .cloze-badge,
+  .cloze-review { display: none; }
+  .cloze-topbar { padding: 8px 0 12px; }
+}
 
 .memorize-view {
   --memo-paper: #f5f1e8;

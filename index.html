@@ -66,6 +66,13 @@
             <small>框架导图 · 知识卡片</small>
           </span>
         </button>
+        <button id="btn-goto-cloze" class="entry-card" type="button">
+          <span class="entry-emoji">✏️</span>
+          <span class="entry-text">
+            <strong>知识点挖空</strong>
+            <small>导入资料 · 自动挖空 · 填空题</small>
+          </span>
+        </button>
       </div>
 
       <div class="data-actions">
@@ -215,6 +222,118 @@
           <button id="btn-wrong-review" class="btn btn-primary hidden" type="button">再练错题</button>
           <button id="btn-retry" class="btn btn-ghost" type="button">重做本套</button>
           <button id="btn-reimport" class="btn btn-ghost" type="button">导入其他题库</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 知识点挖空 ======= -->
+    <section id="cloze-view" class="view">
+      <div class="cloze-topbar">
+        <button id="btn-cloze-home" class="btn btn-ghost btn-small" type="button">← 返回</button>
+        <div class="cloze-brand">
+          <span class="cloze-brand-dot"></span>
+          <span class="cloze-title">知识点挖空</span>
+          <span class="cloze-badge">自动挖空 · 填空题</span>
+        </div>
+        <span class="cloze-review">书架 <b id="cloze-shelf-count">0</b> 本</span>
+      </div>
+
+      <div id="cloze-tabs" class="cloze-tabs">
+        <button class="cloze-tab active" data-cloze-tab="import" type="button">导入资料</button>
+        <button class="cloze-tab" data-cloze-tab="shelf" type="button">挖空书架</button>
+      </div>
+
+      <div id="cloze-import-panel" class="cloze-panel">
+        <div id="cloze-drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="导入学习资料">
+          <div class="folder">
+            <div class="folder-tab"></div>
+            <div class="folder-body">
+              <div class="paper"><i></i><i></i><i></i></div>
+            </div>
+          </div>
+          <div class="drop-hint">
+            <strong>把学习资料拖进来</strong>
+            <span>或粘贴文本 · 自动在人物、时间、观念、风格、影响等重点处挖空</span>
+          </div>
+          <input type="file" id="cloze-file-input" accept=".txt,.md" hidden />
+        </div>
+        <div class="cloze-options">
+          <label class="cloze-opt">
+            <span>挖空强度</span>
+            <select id="cloze-mode" class="pick-target">
+              <option value="standard">标准（时间 / 作品 / 概念术语）</option>
+              <option value="more">更多（再加上代表人物姓名等）</option>
+            </select>
+          </label>
+          <label class="cloze-opt">
+            <span>每题最多挖空</span>
+            <input id="cloze-max" class="weekly-limit" type="number" min="1" max="5" value="2" />
+          </label>
+        </div>
+        <textarea id="cloze-text" class="cloze-text" placeholder="在这里粘贴学习资料，或直接拖入 .txt 文件。例如：&#10;&#10;顾恺之是东晋时期的著名画家，代表作《洛神赋图》体现了“以形写神”的核心观念。19世纪中期，威廉·莫里斯发起工艺美术运动，强调手工艺的价值，对现代设计影响深远。"></textarea>
+        <div class="paste-actions">
+          <button id="btn-cloze-generate" class="btn btn-primary" type="button">生成填空题</button>
+          <button id="btn-cloze-clear" class="btn btn-ghost" type="button">清空</button>
+        </div>
+        <p id="cloze-error" class="error hidden"></p>
+      </div>
+
+      <div id="cloze-preview-panel" class="cloze-panel hidden">
+        <div class="book-name-panel">
+          <p>这些填空题放到哪里？</p>
+          <select id="cloze-book-target" class="book-target"></select>
+          <input id="cloze-book-name" type="text" maxlength="30" placeholder="新书的名字，例如：设计史知识点" />
+        </div>
+        <div class="cloze-preview-head">
+          <div class="weekly-toolbar">
+            <button type="button" class="weekly-btn" id="cloze-all">全选</button>
+            <button type="button" class="weekly-btn" id="cloze-none">全不选</button>
+          </div>
+          <span id="cloze-preview-count" class="pick-count">已选 0 题</span>
+        </div>
+        <div id="cloze-preview-list" class="cloze-preview-list"></div>
+        <div class="pick-actions">
+          <button id="btn-cloze-save" class="btn btn-primary" type="button" disabled>保存到书架（0 题）</button>
+          <button id="btn-cloze-regenerate" class="btn btn-ghost" type="button">重新生成</button>
+        </div>
+      </div>
+
+      <div id="cloze-shelf-panel" class="cloze-panel hidden">
+        <div id="cloze-shelf-list" class="cloze-shelf-list"></div>
+        <p id="cloze-shelf-empty" class="empty-hint hidden">还没有挖空资料，先去导入一篇学习资料生成填空题吧</p>
+      </div>
+
+      <div id="cloze-practice-panel" class="cloze-panel hidden">
+        <div class="quiz-header">
+          <div class="progress">
+            <span id="cloze-quiz-source" class="quiz-source"></span>
+            <span id="cloze-progress-text" class="progress-text">第 1 / 1 题</span>
+            <div class="progress-bar"><div id="cloze-progress-fill" class="progress-fill"></div></div>
+          </div>
+          <button id="btn-cloze-quit" class="btn btn-ghost btn-small" type="button">退出练习</button>
+        </div>
+        <div id="cloze-question-card" class="card question-card">
+          <h2 id="cloze-question" class="question-text cloze-question"></h2>
+          <div id="cloze-result-msg" class="cloze-result-msg"></div>
+        </div>
+        <div id="cloze-quiz-footer" class="quiz-footer">
+          <span id="cloze-footer-hint" class="footer-hint">填完所有空后点「检查答案」</span>
+          <button id="btn-cloze-next" class="btn btn-primary btn-wide" type="button" disabled>检查答案</button>
+        </div>
+        <div id="cloze-result" class="card result-card hidden">
+          <p id="cloze-result-emoji" class="result-emoji"></p>
+          <h2>练习完成！</h2>
+          <div class="score-ring">
+            <div class="score-inner">
+              <div id="cloze-score-text" class="score-big"></div>
+              <p class="rate-text">正确率 <span id="cloze-rate-text"></span></p>
+            </div>
+          </div>
+          <div class="result-actions">
+            <button id="btn-cloze-rewrong" class="btn btn-primary hidden" type="button">再练错题</button>
+            <button id="btn-cloze-retry" class="btn btn-ghost" type="button">重做本套</button>
+            <button id="btn-cloze-done" class="btn btn-ghost" type="button">返回挖空书架</button>
+          </div>
         </div>
       </div>
     </section>

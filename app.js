@@ -8,6 +8,7 @@
     wrongbook: "wrongbook-view",
     quiz: "quiz-view",
     result: "result-view",
+    cloze: "cloze-view",
     memorize: "memorize-view"
   };
   const STORAGE = { books: "quiz_books_v1", wrong: "quiz_wrongbook_v1" };
@@ -1054,7 +1055,8 @@
       exportedAt: new Date().toISOString(),
       books: loadBooks(),
       wrongbook: loadWrong(),
-      memorize: memoLoadStore()
+      memorize: memoLoadStore(),
+      cloze: clozeLoadBooks()
     };
   }
 
@@ -1115,7 +1117,37 @@
         });
       });
     }
-    return { books, wrongbook, memorize };
+    const cloze = [];
+    const clozeRaw = data.cloze;
+    if (Array.isArray(clozeRaw)) {
+      clozeRaw.forEach((b, bi) => {
+        if (!b || typeof b.name !== "string") return;
+        const items = [];
+        (b.items || []).forEach((it) => {
+          if (
+            !it ||
+            !Array.isArray(it.parts) ||
+            !Array.isArray(it.answers) ||
+            it.parts.length !== it.answers.length + 1
+          ) {
+            return;
+          }
+          items.push({
+            id: it.id || "cz" + Date.now() + Math.random().toString(36).slice(2, 6),
+            parts: it.parts.map(String),
+            answers: it.answers.map(String),
+            addedAt: it.addedAt || Date.now()
+          });
+        });
+        cloze.push({
+          id: b.id || "cz" + Date.now() + bi,
+          name: b.name,
+          createdAt: b.createdAt || Date.now(),
+          items
+        });
+      });
+    }
+    return { books, wrongbook, memorize, cloze };
   }
 
   function downloadBackup() {
@@ -1152,13 +1184,15 @@
       saveJSON(STORAGE.books, clean.books);
       saveJSON(STORAGE.wrong, clean.wrongbook);
       saveJSON(MEMO_STORE_KEY, clean.memorize || { books: [] });
+      clozeSaveBooks(clean.cloze || []);
       memoStore = null;
       memoRendered = false;
       updateCounts();
       toast(
         "恢复成功：" + clean.books.length + " 本书 · " +
         clean.wrongbook.length + " 道错题 · 背诵 " +
-        (clean.memorize ? clean.memorize.books.length : 0) + " 本"
+        (clean.memorize ? clean.memorize.books.length : 0) + " 本 · 挖空 " +
+        clean.cloze.length + " 本"
       );
     };
     reader.onerror = () => toast("读取备份文件失败");
@@ -1171,6 +1205,604 @@
     const file = $("restore-file-input").files[0];
     if (file) restoreBackup(file);
     $("restore-file-input").value = "";
+  });
+
+  /* ============ 知识点挖空 ============ */
+  const CLOZE_STORE_KEY = "quiz_cloze_v1";
+  const clozeLoadBooks = () => loadJSON(CLOZE_STORE_KEY, []);
+  const clozeSaveBooks = (books) => saveJSON(CLOZE_STORE_KEY, books);
+
+  let clozePreviewItems = [];
+  let clozePreviewSelected = new Set();
+  let clozeAppendTarget = "";
+  let clozePracticeItems = [];
+  let clozePracticeInputs = [];
+  let clozePracticeCurrent = 0;
+  let clozePracticeSource = "";
+  let clozePracticeBookId = "";
+  let clozePracticeWrong = [];
+
+  function updateClozeCount() {
+    $("cloze-shelf-count").textContent = clozeLoadBooks().length;
+  }
+
+  function clozeError(msg) {
+    const el = $("cloze-error");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+  function clozeClearError() {
+    $("cloze-error").classList.add("hidden");
+  }
+
+  function enterCloze() {
+    clozeClearError();
+    updateClozeCount();
+    showView("cloze");
+    switchClozeTab("import");
+  }
+
+  function switchClozeTab(name) {
+    document.querySelectorAll(".cloze-tab").forEach((t) => {
+      t.classList.toggle("active", t.dataset.clozeTab === name);
+    });
+    $("cloze-tabs").classList.remove("hidden");
+    clozeShowPanel(name);
+    if (name === "shelf") renderClozeShelf();
+  }
+
+  function clozeShowPanel(name) {
+    $("cloze-import-panel").classList.toggle("hidden", name !== "import");
+    $("cloze-preview-panel").classList.add("hidden");
+    $("cloze-shelf-panel").classList.toggle("hidden", name !== "shelf");
+    $("cloze-practice-panel").classList.toggle("hidden", name !== "practice");
+  }
+
+  /* ---------- 自动挖空 ---------- */
+  const CLOZE_SUFFIXES = [
+    "代表作品",
+    "主义", "运动", "风格", "流派", "学派", "思想", "体系", "理论",
+    "设计", "艺术", "工艺", "文化", "建筑", "原则", "观念", "特征",
+    "精神", "技法", "方法", "主张"
+  ];
+  const CLOZE_BOUND = new Set(
+    "的了是在把将由从与和及或其对向以于而为等很更也这那被将之因但若如虽同"
+  );
+  const CLOZE_STOP2 = [
+    "发起", "强调", "体现", "提出", "认为", "主张", "包括", "形成",
+    "发展", "推动", "促进", "代表", "成为", "出现", "兴起", "采用",
+    "坚持", "追求", "注重", "突出", "讲究", "融合", "结合", "吸收",
+    "借鉴", "影响", "反对", "开始", "结束", "为了", "通过", "由于",
+    "随着", "作为", "比如", "因为"
+  ];
+
+  function clozeTermCandidates(sentence, mode) {
+    const out = [];
+    const add = (start, end, term) => {
+      const t = String(term || "").trim();
+      if (end > start && start >= 0 && end <= sentence.length && t) {
+        out.push({ start, end, term: t });
+      }
+    };
+    let m;
+    const scan = (re, pick) => {
+      re.lastIndex = 0;
+      while ((m = re.exec(sentence))) {
+        const term = pick ? pick(m) : m[0];
+        const idx = m[0].indexOf(term);
+        add(m.index + idx, m.index + idx + term.length, term);
+      }
+    };
+    // 时间
+    scan(/\d{1,4}\s*世纪/g);
+    scan(/\d{3,4}\s*年/g);
+    scan(/\d+\s*年代/g);
+    scan(/公元前?\s*\d+\s*年?/g);
+    scan(/\d+\s*年\s*\d+\s*月/g);
+    // 作品名
+    scan(/《[^》]{1,24}》/g);
+    // 引号里的概念（保留引号，只挖内容）
+    scan(/[“"]([^”"]{2,14})[”"]/g, (mm) => mm[1]);
+    // 概念术语：从关键词往前最多找 10 个汉字，遇到虚字/双字动词就停
+    for (let i = 0; i < sentence.length; i++) {
+      for (const suf of CLOZE_SUFFIXES) {
+        if (!sentence.startsWith(suf, i)) continue;
+        let start = i;
+        let n = 0;
+        while (start > 0 && n < 10) {
+          const ch = sentence[start - 1];
+          if (!/[\u4e00-\u9fa5]/.test(ch) || CLOZE_BOUND.has(ch)) break;
+          if (start >= 2 && CLOZE_STOP2.indexOf(sentence.slice(start - 2, start)) >= 0) break;
+          start--;
+          n++;
+        }
+        add(start, i + suf.length, sentence.slice(start, i + suf.length));
+        i += suf.length - 1;
+        break;
+      }
+    }
+    if (mode === "more") {
+      // 代表人物姓名等（“代表人物顾恺之”这类）
+      scan(
+        /(?:代表人物|设计师|建筑师|艺术家|画家|作家|思想家|创始人|奠基人|领袖|领导人|学者|史称|被誉为|认为|提出)[是为:：]?\s*([\u4e00-\u9fa5]{2,4})/g,
+        (mm) => trimClozeName(mm[1])
+      );
+      // “某某发起 / 提出 / 设计 / 创作 …” 这类人物开头
+      scan(
+        /([\u4e00-\u9fa5·]{2,6})(?:发起了?|提出了?|认为|强调|主张|创建了?|创办了?|设计了?|创作了?|倡导了?)/g,
+        (mm) => trimClozeName(mm[1])
+      );
+    }
+    return out;
+  }
+
+  function trimClozeName(name) {
+    return String(name || "").replace(/[的是了和与及等被把将其在因为中]$/g, "");
+  }
+
+  function buildClozeItems(text, mode, maxBlanks) {
+    const items = [];
+    const source = String(text || "").replace(/\r/g, "").replace(/\u3000/g, " ");
+    const re = /[^。！？；\n]+[。！？；]?/g;
+    let m;
+    while ((m = re.exec(source))) {
+      const sentence = m[0].trim();
+      if (sentence.length < 8) continue;
+      const cands = clozeTermCandidates(sentence, mode);
+      if (!cands.length) continue;
+      cands.sort((a, b) => b.end - b.start - (a.end - a.start));
+      const picked = [];
+      for (const c of cands) {
+        if (picked.some((p) => c.start < p.end && p.start < c.end)) continue;
+        picked.push(c);
+        if (picked.length >= maxBlanks) break;
+      }
+      if (!picked.length) continue;
+      picked.sort((a, b) => a.start - b.start);
+      const parts = [];
+      const answers = [];
+      let pos = 0;
+      picked.forEach((c) => {
+        parts.push(sentence.slice(pos, c.start));
+        answers.push(c.term);
+        pos = c.end;
+      });
+      parts.push(sentence.slice(pos));
+      items.push({
+        id: "cz" + Date.now() + Math.random().toString(36).slice(2, 6) + items.length,
+        parts,
+        answers,
+        addedAt: Date.now()
+      });
+    }
+    return items;
+  }
+
+  /* ---------- 导入资料 ---------- */
+  const clozeDropZone = $("cloze-drop-zone");
+  const clozeFileInput = $("cloze-file-input");
+  clozeDropZone.addEventListener("click", () => clozeFileInput.click());
+  clozeDropZone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      clozeFileInput.click();
+    }
+  });
+  ["dragenter", "dragover"].forEach((ev) =>
+    clozeDropZone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      clozeDropZone.classList.add("dragover");
+    })
+  );
+  ["dragleave", "drop"].forEach((ev) =>
+    clozeDropZone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      clozeDropZone.classList.remove("dragover");
+    })
+  );
+  clozeDropZone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) readClozeFile(file);
+  });
+  clozeFileInput.addEventListener("change", () => {
+    if (clozeFileInput.files[0]) readClozeFile(clozeFileInput.files[0]);
+  });
+
+  function readClozeFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      $("cloze-text").value = reader.result;
+      clozeClearError();
+      toast("已读取《" + file.name + "》，点「生成填空题」试试");
+    };
+    reader.onerror = () => clozeError("读取文件失败，请重试");
+    reader.readAsText(file);
+  }
+
+  function generateCloze() {
+    const text = $("cloze-text").value.trim();
+    if (!text) {
+      clozeError("请先粘贴学习资料或拖入 .txt 文件");
+      return;
+    }
+    clozeClearError();
+    const mode = $("cloze-mode").value;
+    let max = parseInt($("cloze-max").value, 10);
+    if (!Number.isFinite(max) || max < 1) max = 1;
+    if (max > 5) max = 5;
+    const items = buildClozeItems(text, mode, max);
+    if (!items.length) {
+      clozeError("没有识别出可挖空的重点，试试「更多」强度，或检查资料内容");
+      return;
+    }
+    clozePreviewItems = items;
+    clozePreviewSelected = new Set(items.map((i) => i.id));
+    renderClozeBookTargets();
+    renderClozePreview();
+    $("cloze-import-panel").classList.add("hidden");
+    $("cloze-preview-panel").classList.remove("hidden");
+  }
+
+  $("btn-cloze-generate").addEventListener("click", generateCloze);
+  $("btn-cloze-clear").addEventListener("click", () => {
+    $("cloze-text").value = "";
+    clozeClearError();
+  });
+
+  /* ---------- 生成预览 ---------- */
+  function renderClozeBookTargets() {
+    const sel = $("cloze-book-target");
+    sel.innerHTML = "";
+    const optNew = document.createElement("option");
+    optNew.value = "new";
+    optNew.textContent = "➕ 新建一本书";
+    sel.appendChild(optNew);
+    clozeLoadBooks().forEach((b) => {
+      const opt = document.createElement("option");
+      opt.value = b.id;
+      opt.textContent = "📖 " + b.name + "（已有 " + b.items.length + " 题）";
+      sel.appendChild(opt);
+    });
+    const valid = clozeLoadBooks().some((b) => b.id === clozeAppendTarget);
+    sel.value = clozeAppendTarget && valid ? clozeAppendTarget : "new";
+    $("cloze-book-name").style.display = sel.value === "new" ? "" : "none";
+  }
+  $("cloze-book-target").addEventListener("change", () => {
+    $("cloze-book-name").style.display =
+      $("cloze-book-target").value === "new" ? "" : "none";
+  });
+
+  function clozePreviewSentenceHtml(item) {
+    let html = "";
+    item.parts.forEach((p, i) => {
+      html += escapeHTML(p);
+      if (i < item.answers.length) {
+        html += '<span class="cloze-blank">＿＿＿</span>';
+      }
+    });
+    return html;
+  }
+
+  function updateClozePreviewCount() {
+    const n = clozePreviewSelected.size;
+    $("cloze-preview-count").textContent = "已选 " + n + " 题";
+    const btn = $("btn-cloze-save");
+    btn.disabled = n === 0;
+    btn.textContent = "保存到书架（" + n + " 题）";
+  }
+
+  function renderClozePreview() {
+    const list = $("cloze-preview-list");
+    list.innerHTML = "";
+    clozePreviewItems.forEach((item) => {
+      const row = document.createElement("div");
+      const checked = clozePreviewSelected.has(item.id);
+      row.className = "cloze-preview-row" + (checked ? " checked" : "");
+      row.innerHTML =
+        '<input type="checkbox" class="pick-check"' + (checked ? " checked" : "") + " />" +
+        '<div class="cloze-preview-body">' +
+        '<p class="cloze-preview-sentence">' + clozePreviewSentenceHtml(item) + "</p>" +
+        '<div class="cloze-preview-answers">' +
+        item.answers.map((a, i) =>
+          '<span class="cloze-answer-chip" data-i="' + i + '">' + escapeHTML(a) + " ✕</span>"
+        ).join("") +
+        "</div></div>";
+      const cb = row.querySelector(".pick-check");
+      const toggleRow = () => {
+        const on = cb.checked;
+        if (on) clozePreviewSelected.add(item.id);
+        else clozePreviewSelected.delete(item.id);
+        row.classList.toggle("checked", on);
+        updateClozePreviewCount();
+      };
+      row.addEventListener("click", (e) => {
+        if (e.target.classList.contains("cloze-answer-chip")) return;
+        if (e.target !== cb) cb.checked = !cb.checked;
+        toggleRow();
+      });
+      cb.addEventListener("change", toggleRow);
+      row.querySelectorAll(".cloze-answer-chip").forEach((chip) => {
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const i = parseInt(chip.dataset.i, 10);
+          if (i < 0 || i >= item.answers.length) return;
+          item.parts[i] = item.parts[i] + item.parts[i + 1];
+          item.parts.splice(i + 1, 1);
+          item.answers.splice(i, 1);
+          if (!item.answers.length) {
+            clozePreviewItems = clozePreviewItems.filter((x) => x.id !== item.id);
+            clozePreviewSelected.delete(item.id);
+            renderClozePreview();
+            toast("本题已经没有空可挖，已移除");
+            return;
+          }
+          renderClozePreview();
+        });
+      });
+      list.appendChild(row);
+    });
+    updateClozePreviewCount();
+  }
+
+  $("cloze-all").addEventListener("click", () => {
+    clozePreviewSelected = new Set(clozePreviewItems.map((i) => i.id));
+    renderClozePreview();
+  });
+  $("cloze-none").addEventListener("click", () => {
+    clozePreviewSelected.clear();
+    renderClozePreview();
+  });
+
+  function saveClozeItems() {
+    const selected = clozePreviewItems.filter((i) => clozePreviewSelected.has(i.id));
+    if (!selected.length) {
+      toast("请先勾选要保存的题目");
+      return;
+    }
+    const target = $("cloze-book-target").value;
+    const books = clozeLoadBooks();
+    let book;
+    if (target === "new") {
+      const name = $("cloze-book-name").value.trim() || "未命名挖空";
+      book = {
+        id: "cz" + Date.now() + Math.random().toString(36).slice(2, 6),
+        name,
+        createdAt: Date.now(),
+        items: []
+      };
+      books.push(book);
+    } else {
+      book = books.find((b) => b.id === target);
+      if (!book) {
+        toast("没有找到这本书，请重试");
+        return;
+      }
+    }
+    const existing = new Set(
+      book.items.map((i) => i.parts.join("|") + "::" + i.answers.join("|"))
+    );
+    let added = 0;
+    let skipped = 0;
+    selected.forEach((i) => {
+      const key = i.parts.join("|") + "::" + i.answers.join("|");
+      if (existing.has(key)) {
+        skipped++;
+        return;
+      }
+      existing.add(key);
+      book.items.push({
+        ...i,
+        id: "cz" + Date.now() + Math.random().toString(36).slice(2, 6)
+      });
+      added++;
+    });
+    clozeSaveBooks(books);
+    clozePreviewItems = [];
+    clozePreviewSelected = new Set();
+    clozeAppendTarget = "";
+    $("cloze-text").value = "";
+    $("cloze-preview-panel").classList.add("hidden");
+    updateClozeCount();
+    switchClozeTab("shelf");
+    toast(
+      added
+        ? "已保存 " + added + " 题到《" + book.name + "》" +
+          (skipped ? "，跳过 " + skipped + " 题重复" : "")
+        : "这些题在《" + book.name + "》里已经有了，未重复保存"
+    );
+  }
+
+  $("btn-cloze-save").addEventListener("click", saveClozeItems);
+  $("btn-cloze-regenerate").addEventListener("click", () => {
+    $("cloze-preview-panel").classList.add("hidden");
+    $("cloze-import-panel").classList.remove("hidden");
+  });
+
+  /* ---------- 挖空书架 ---------- */
+  function renderClozeShelf() {
+    const books = clozeLoadBooks();
+    const list = $("cloze-shelf-list");
+    list.innerHTML = "";
+    $("cloze-shelf-empty").classList.toggle("hidden", books.length > 0);
+    books.forEach((b) => {
+      const card = document.createElement("div");
+      card.className = "cloze-book-card";
+      card.innerHTML =
+        '<div class="cloze-book-info">' +
+        '<strong class="book-name">' + escapeHTML(b.name) + "</strong>" +
+        '<span class="book-meta">' + b.items.length + " 题 · " + formatDate(b.createdAt) + "</span>" +
+        "</div>" +
+        '<div class="book-actions">' +
+        '<button class="btn btn-primary btn-small" data-act="start" type="button">开始练习</button>' +
+        '<button class="btn btn-ghost btn-small" data-act="append" type="button">追加资料</button>' +
+        '<button class="btn btn-ghost btn-small" data-act="del" type="button">删除</button>' +
+        "</div>";
+      card.querySelector('[data-act="start"]').addEventListener("click", () => {
+        if (!b.items.length) {
+          toast("这本书还没有填空题，先导入资料生成吧");
+          return;
+        }
+        startClozePractice(b.items, b.name, b.id);
+      });
+      card.querySelector('[data-act="append"]').addEventListener("click", () => {
+        clozeAppendTarget = b.id;
+        renderClozeBookTargets();
+        switchClozeTab("import");
+        toast("已选择《" + b.name + "》：生成的新题会自动追加进去");
+      });
+      card.querySelector('[data-act="del"]').addEventListener("click", () => {
+        if (confirm("确定删除《" + b.name + "》吗？里面的填空题会一并删除。")) {
+          clozeSaveBooks(clozeLoadBooks().filter((x) => x.id !== b.id));
+          renderClozeShelf();
+          updateClozeCount();
+          toast("已删除");
+        }
+      });
+      list.appendChild(card);
+    });
+    updateClozeCount();
+  }
+
+  /* ---------- 填空练习 ---------- */
+  function startClozePractice(items, sourceName, bookId) {
+    clozePracticeItems = items.map((i) => ({
+      ...i,
+      parts: i.parts.slice(),
+      answers: i.answers.slice()
+    }));
+    clozePracticeInputs = clozePracticeItems.map((i) => i.answers.map(() => ""));
+    clozePracticeWrong = clozePracticeItems.map(() => false);
+    clozePracticeCurrent = 0;
+    clozePracticeSource = sourceName || "";
+    clozePracticeBookId = bookId || "";
+    $("cloze-result").classList.add("hidden");
+    $("cloze-question-card").classList.remove("hidden");
+    $("cloze-quiz-footer").classList.remove("hidden");
+    $("cloze-tabs").classList.add("hidden");
+    clozeShowPanel("practice");
+    renderClozeQuestion();
+  }
+
+  function renderClozeQuestion() {
+    const item = clozePracticeItems[clozePracticeCurrent];
+    $("cloze-progress-text").textContent =
+      "第 " + (clozePracticeCurrent + 1) + " / " + clozePracticeItems.length + " 题";
+    $("cloze-progress-fill").style.width =
+      ((clozePracticeCurrent + 1) / clozePracticeItems.length) * 100 + "%";
+    $("cloze-quiz-source").textContent = clozePracticeSource
+      ? "来源：" + clozePracticeSource
+      : "";
+    $("cloze-result-msg").textContent = "";
+    $("cloze-result-msg").className = "cloze-result-msg";
+    let html = "";
+    item.parts.forEach((p, i) => {
+      html += escapeHTML(p);
+      if (i < item.answers.length) {
+        const val = escapeHTML(clozePracticeInputs[clozePracticeCurrent][i] || "");
+        const width = Math.max(4, item.answers[i].length + 2);
+        html +=
+          '<input class="cloze-input" data-i="' + i + '" type="text" value="' + val +
+          '" autocomplete="off" style="width:' + width + 'em" />';
+      }
+    });
+    $("cloze-question").innerHTML = html;
+    $("cloze-question").querySelectorAll(".cloze-input").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        clozePracticeInputs[clozePracticeCurrent][parseInt(inp.dataset.i, 10)] = inp.value;
+        updateClozeNext();
+      });
+    });
+    const nextBtn = $("btn-cloze-next");
+    nextBtn.dataset.step = "check";
+    nextBtn.textContent = "检查答案";
+    $("cloze-footer-hint").textContent = "填完所有空后点「检查答案」";
+    $("cloze-footer-hint").classList.remove("hide");
+    updateClozeNext();
+  }
+
+  function updateClozeNext() {
+    const vals = clozePracticeInputs[clozePracticeCurrent] || [];
+    const allFilled = vals.every((v) => String(v).trim() !== "");
+    $("btn-cloze-next").disabled = !allFilled;
+  }
+
+  function handleClozeNext() {
+    const btn = $("btn-cloze-next");
+    if (btn.dataset.step === "check") {
+      const item = clozePracticeItems[clozePracticeCurrent];
+      let allOk = true;
+      $("cloze-question").querySelectorAll(".cloze-input").forEach((inp, i) => {
+        inp.disabled = true;
+        const user = String(clozePracticeInputs[clozePracticeCurrent][i]).trim();
+        const ok = user === item.answers[i].trim();
+        if (!ok) allOk = false;
+        inp.classList.add(ok ? "ok" : "no");
+        if (!ok) {
+          const hint = document.createElement("span");
+          hint.className = "cloze-correct";
+          hint.textContent = "✓ " + item.answers[i].trim();
+          inp.insertAdjacentElement("afterend", hint);
+        }
+      });
+      clozePracticeWrong[clozePracticeCurrent] = !allOk;
+      const msg = $("cloze-result-msg");
+      msg.textContent = allOk ? "✓ 全对！" : "再看看，正确答案已标出";
+      msg.className = "cloze-result-msg " + (allOk ? "ok" : "no");
+      btn.textContent =
+        clozePracticeCurrent === clozePracticeItems.length - 1 ? "查看成绩" : "下一题";
+      btn.dataset.step = "next";
+      $("cloze-footer-hint").classList.add("hide");
+    } else {
+      if (clozePracticeCurrent === clozePracticeItems.length - 1) showClozeResult();
+      else {
+        clozePracticeCurrent++;
+        renderClozeQuestion();
+      }
+    }
+  }
+  $("btn-cloze-next").addEventListener("click", handleClozeNext);
+
+  function showClozeResult() {
+    const total = clozePracticeItems.length;
+    let correct = 0;
+    clozePracticeWrong.forEach((w) => {
+      if (!w) correct++;
+    });
+    const rate = total ? Math.round((correct / total) * 100) : 0;
+    $("cloze-score-text").textContent = correct + " / " + total;
+    $("cloze-rate-text").textContent = rate + "%";
+    $("cloze-result-emoji").textContent =
+      rate === 100 ? "🏆 全对，太厉害了！"
+      : rate >= 80 ? "🎉 很棒！"
+      : rate >= 60 ? "👍 继续加油！"
+      : "💪 多练几次就会了！";
+    $("cloze-question-card").classList.add("hidden");
+    $("cloze-quiz-footer").classList.add("hidden");
+    $("cloze-result").classList.remove("hidden");
+    $("btn-cloze-rewrong").classList.toggle("hidden", total - correct === 0);
+  }
+
+  function exitClozePractice() {
+    switchClozeTab("shelf");
+    renderClozeShelf();
+  }
+
+  $("btn-cloze-quit").addEventListener("click", () => {
+    if (confirm("确定退出当前练习吗？")) exitClozePractice();
+  });
+  $("btn-cloze-retry").addEventListener("click", () => {
+    startClozePractice(clozePracticeItems, clozePracticeSource, clozePracticeBookId);
+  });
+  $("btn-cloze-rewrong").addEventListener("click", () => {
+    const wrong = clozePracticeItems.filter((_, i) => clozePracticeWrong[i]);
+    startClozePractice(wrong, clozePracticeSource + " · 错题重练", clozePracticeBookId);
+  });
+  $("btn-cloze-done").addEventListener("click", exitClozePractice);
+
+  $("btn-goto-cloze").addEventListener("click", enterCloze);
+  $("btn-cloze-home").addEventListener("click", () => showView("home"));
+  document.querySelectorAll(".cloze-tab").forEach((t) => {
+    t.addEventListener("click", () => switchClozeTab(t.dataset.clozeTab));
   });
 
   /* ============ 题库解析器 ============ */
@@ -2199,6 +2831,7 @@
   applyTheme(savedTheme && THEME_NAMES[savedTheme] ? savedTheme : "pink");
   showView("home");
   updateCounts();
+  updateClozeCount();
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = {
