@@ -300,7 +300,15 @@
     if (name === "memorize") initMemorize();
     document.body.classList.toggle("in-memo", name === "memorize");
     document.body.classList.toggle("in-quiz", name === "quiz");
-    $("btn-switch").textContent = name === "memorize" ? "" : "📚 背诵板块";
+    updateNav(name);
+  }
+
+  function updateNav(name) {
+    const map = { splash: "splash", shelf: "shelf", cloze: "cloze", memorize: "memo" };
+    const active = map[name] || "";
+    document.querySelectorAll(".nav-tab").forEach((t) => {
+      t.classList.toggle("active", t.dataset.go === active);
+    });
   }
 
   /* ============ 开屏导航 ============ */
@@ -320,20 +328,26 @@
     showView("splash");
   }
 
+  function goSection(name) {
+    if (name === "splash") showSplash();
+    else if (name === "shelf") {
+      renderShelf();
+      updateCounts();
+      showView("shelf");
+    } else if (name === "cloze") {
+      enterCloze();
+    } else if (name === "memo") {
+      showView("memorize");
+    }
+  }
+
   document.querySelectorAll(".splash-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      const go = card.dataset.go;
-      if (go === "shelf") {
-        renderShelf();
-        updateCounts();
-        showView("shelf");
-      } else if (go === "cloze") {
-        enterCloze();
-      } else if (go === "memo") {
-        showView("memorize");
-      }
-    });
+    card.addEventListener("click", () => goSection(card.dataset.go));
   });
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    tab.addEventListener("click", () => goSection(tab.dataset.go));
+  });
+  $("nav-brand").addEventListener("click", showSplash);
   $("btn-splash-home").addEventListener("click", () => {
     updateCounts();
     showView("home");
@@ -2651,7 +2665,6 @@
   }
 
   $("btn-goto-memo").addEventListener("click", () => showView("memorize"));
-  $("btn-switch").addEventListener("click", () => showView("memorize"));
   $("btn-memo-home").addEventListener("click", () => showSplash());
   $("memo-expand-all").addEventListener("click", () => {
     document.querySelectorAll(".memo-children").forEach((w) => w.classList.remove("collapsed"));

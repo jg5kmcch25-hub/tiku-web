@@ -415,6 +415,90 @@ body::before {
 .swatch-cream { background: #d97706; }
 .swatch-dark { background: #8b5cf6; }
 
+/* ---------- 顶部导航 ---------- */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 14px;
+  margin-bottom: 18px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  border-radius: 0 0 18px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.nav-brand {
+  flex: none;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  cursor: pointer;
+  padding: 4px 2px;
+  white-space: nowrap;
+  background: var(--grad-title);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.nav-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-tabs::-webkit-scrollbar { display: none; }
+.nav-tab {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 7px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.nav-tab:hover {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+.nav-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-weight: 650;
+}
+.topnav .theme-toggle {
+  position: static;
+  flex: none;
+  box-shadow: none;
+  padding: 7px 13px;
+}
+.topnav .theme-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+}
+
+@media (max-width: 640px) {
+  .nav-brand { display: none; }
+  .nav-tab { padding: 7px 9px; font-size: 12.5px; }
+  .topnav { padding: 8px 10px; }
+}
+
 /* ---------- 首页 ---------- */
 .hero { text-align: center; margin-bottom: 30px; }
 .badge {
@@ -1551,11 +1635,6 @@ body::before {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   box-shadow: var(--shadow-md);
 }
-body.in-quiz #btn-switch,
-body.in-memo #btn-switch,
-body.in-memo #theme-toggle {
-  display: none;
-}
 .entry-card:nth-child(3) .entry-emoji { background: #e7efe8; }
 .entry-card:nth-child(4) .entry-emoji { background: #fdf0e0; }
 
@@ -1589,7 +1668,7 @@ body.in-memo #theme-toggle {
 #memorize-view.active {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 72px);
   animation: none;
 }
 .memo-topbar {

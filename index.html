@@ -7,11 +7,20 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="更换主题">主题</button>
-  <button id="btn-switch" class="switch-btn" type="button">📚 背诵板块</button>
-  <div id="theme-panel" class="theme-panel hidden"></div>
-
   <div id="app">
+
+    <!-- ======= 顶部导航 ======= -->
+    <nav id="topnav" class="topnav">
+      <button id="nav-brand" class="nav-brand" type="button">题库答题</button>
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-go="splash" type="button">首页</button>
+        <button class="nav-tab" data-go="shelf" type="button">题库选择</button>
+        <button class="nav-tab" data-go="cloze" type="button">题库填空</button>
+        <button class="nav-tab" data-go="memo" type="button">框架背诵</button>
+      </div>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="更换主题">主题</button>
+      <div id="theme-panel" class="theme-panel hidden"></div>
+    </nav>
 
     <!-- ======= 开屏导航 ======= -->
     <section id="splash-view" class="view splash-view">
