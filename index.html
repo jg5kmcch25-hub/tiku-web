@@ -118,6 +118,7 @@
       <div class="page-header">
         <h2>我的书架</h2>
         <div class="page-actions">
+          <button id="btn-shelf-newbook" class="btn btn-ghost btn-small" type="button">新建空白书</button>
           <button id="btn-shelf-import" class="btn btn-ghost btn-small" type="button">导入新题库</button>
           <button id="btn-shelf-home" class="btn btn-ghost btn-small" type="button">返回</button>
         </div>
@@ -136,6 +137,14 @@
         </div>
         <p id="pick-hint" class="pick-hint">题目按加入日期排列，轻点一行即可勾选 / 取消，选好后开始答题</p>
         <div id="pick-list" class="pick-list"></div>
+        <div class="pick-tools">
+          <label class="pick-move">
+            <span>迁移到</span>
+            <select id="pick-move-target" class="pick-target"></select>
+          </label>
+          <button id="btn-pick-move" class="btn btn-ghost btn-small" type="button" disabled>迁移所选</button>
+          <button id="btn-pick-delete" class="btn btn-ghost btn-small btn-danger" type="button" disabled>删除所选</button>
+        </div>
         <div class="pick-actions">
           <button id="btn-pick-start" class="btn btn-primary" type="button" disabled>开始答题（0 题）</button>
           <button id="btn-pick-cancel" class="btn btn-ghost" type="button">返回书架</button>

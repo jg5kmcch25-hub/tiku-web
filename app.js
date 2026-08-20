@@ -377,7 +377,7 @@
   let weeklyState = {}; // bookId -> { checked, limit }，记住上次的选书设置
 
   function openWeeklyPanel() {
-    weeklyBooks = loadBooks();
+    weeklyBooks = loadBooks().filter((b) => b.questions.length > 0);
     const list = $("weekly-books");
     list.innerHTML = "";
     if (!weeklyBooks.length) {
@@ -671,6 +671,30 @@
   $("btn-shelf-import").addEventListener("click", () => {
     showView("home");
   });
+  $("btn-shelf-newbook").addEventListener("click", () => {
+    const name = prompt("新书的名字：", "");
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast("书名为空，未创建");
+      return;
+    }
+    const books = loadBooks();
+    if (books.some((b) => b.name === trimmed)) {
+      toast("已经有一本叫《" + trimmed + "》的书了");
+      return;
+    }
+    books.push({
+      id: "b" + Date.now() + Math.random().toString(36).slice(2, 6),
+      name: trimmed,
+      createdAt: Date.now(),
+      questions: []
+    });
+    saveJSON(STORAGE.books, books);
+    renderShelf();
+    updateCounts();
+    toast("已创建空白书《" + trimmed + "》");
+  });
   $("shelf-empty-link").addEventListener("click", (e) => {
     e.preventDefault();
     showView("home");
@@ -703,6 +727,10 @@
         "linear-gradient(135deg, hsl(" + hue + ", 78%, 80%), hsl(" +
         ((hue + 34) % 360) + ", 72%, 62%))";
       card.querySelector('[data-act="start"]').addEventListener("click", () => {
+        if (!b.questions.length) {
+          toast("《" + b.name + "》还没有题目，先追加题目或迁入题目吧");
+          return;
+        }
         startQuiz(b.questions, b.name, b.id);
       });
       card.querySelector('[data-act="append"]').addEventListener("click", () => {
@@ -780,6 +808,111 @@
     const btn = $("btn-pick-start");
     btn.disabled = n === 0;
     btn.textContent = "开始答题（" + n + " 题）";
+    $("btn-pick-move").disabled = n === 0;
+    $("btn-pick-delete").disabled = n === 0;
+  }
+
+  function renderPickTargets() {
+    const sel = $("pick-move-target");
+    const current = sel.value;
+    sel.innerHTML = "";
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "选择书目…";
+    sel.appendChild(opt);
+    loadBooks().forEach((b) => {
+      if (b.id === pickBook.id) return;
+      const o = document.createElement("option");
+      o.value = b.id;
+      o.textContent = b.name + "（" + b.questions.length + " 题）";
+      sel.appendChild(o);
+    });
+    if (current && Array.from(sel.options).some((o) => o.value === current)) {
+      sel.value = current;
+    }
+  }
+
+  function persistPickBook() {
+    const books = loadBooks();
+    const book = books.find((b) => b.id === pickBook.id);
+    if (!book) return;
+    book.questions = pickBook.questions;
+    saveJSON(STORAGE.books, books);
+  }
+
+  function deleteSelectedQuestions() {
+    if (!pickSelected.size) {
+      toast("请先勾选要删除的题目");
+      return;
+    }
+    const n = pickSelected.size;
+    if (!confirm("确定删除选中的 " + n + " 道题吗？删除后无法恢复。")) return;
+    pickBook.questions = pickBook.questions.filter((q) => !pickSelected.has(q));
+    persistPickBook();
+    pickSelected.clear();
+    renderPickPanel();
+    updateCounts();
+    toast("已删除 " + n + " 道题");
+  }
+
+  function moveSelectedQuestions() {
+    const targetId = $("pick-move-target").value;
+    if (!targetId) {
+      toast("请先选择要迁入的书");
+      return;
+    }
+    if (targetId === pickBook.id) {
+      toast("不能迁移到当前这本书");
+      return;
+    }
+    if (!pickSelected.size) {
+      toast("请先勾选要迁移的题目");
+      return;
+    }
+    const books = loadBooks();
+    const src = books.find((b) => b.id === pickBook.id);
+    const dst = books.find((b) => b.id === targetId);
+    if (!src || !dst) {
+      toast("没有找到这本书，请重试");
+      return;
+    }
+    const selectedCount = pickSelected.size;
+    if (!confirm("确定把选中的 " + selectedCount + " 道题迁移到《" + dst.name + "》吗？")) {
+      return;
+    }
+    const existing = new Set(
+      dst.questions.map((q) => q.question + "||" + q.options.join("|"))
+    );
+    const moved = [];
+    const remaining = [];
+    pickBook.questions.forEach((q) => {
+      if (!pickSelected.has(q)) {
+        remaining.push(q);
+        return;
+      }
+      const key = q.question + "||" + q.options.join("|");
+      if (existing.has(key)) {
+        remaining.push(q);
+        return;
+      }
+      existing.add(key);
+      moved.push(q);
+    });
+    pickBook.questions = remaining;
+    src.questions = remaining;
+    dst.questions = dst.questions.concat(moved);
+    saveJSON(STORAGE.books, books);
+    pickSelected.clear();
+    renderPickPanel();
+    updateCounts();
+    if (moved.length) {
+      toast(
+        "已迁移 " + moved.length + " 道题到《" + dst.name + "》" +
+        (moved.length < selectedCount ? "，跳过 " + (selectedCount - moved.length) + " 道重复题" : "")
+      );
+    } else {
+      toast("选中的题在《" + dst.name + "》里已经有了，未迁移");
+    }
   }
 
   function renderPickPanel() {
@@ -811,6 +944,7 @@
     });
     $("btn-pick-sort").textContent =
       pickOrder === "desc" ? "按日期 · 最新优先" : "按日期 · 最早优先";
+    renderPickTargets();
     updatePickCount();
   }
 
@@ -826,6 +960,8 @@
     pickOrder = pickOrder === "desc" ? "asc" : "desc";
     renderPickPanel();
   });
+  $("btn-pick-delete").addEventListener("click", deleteSelectedQuestions);
+  $("btn-pick-move").addEventListener("click", moveSelectedQuestions);
   $("btn-pick-cancel").addEventListener("click", closePickPanel);
   $("btn-pick-start").addEventListener("click", () => {
     if (!pickBook || pickSelected.size === 0) {
@@ -935,7 +1071,6 @@
     data.books.forEach((b, bi) => {
       if (!b || typeof b.name !== "string") return;
       const norm = normalizeList(b.questions || []);
-      if (!norm.list.length) return;
       books.push({
         id: b.id || "b" + Date.now() + bi,
         name: b.name,
