@@ -14,7 +14,7 @@
       <button id="nav-brand" class="nav-brand" type="button">题库答题</button>
       <div class="nav-tabs">
         <button class="nav-tab active" data-go="splash" type="button">首页</button>
-        <button class="nav-tab" data-go="shelf" type="button">题库选择</button>
+        <button class="nav-tab" data-go="home" type="button">题库选择</button>
         <button class="nav-tab" data-go="cloze" type="button">题库填空</button>
         <button class="nav-tab" data-go="memo" type="button">框架背诵</button>
       </div>
@@ -29,11 +29,11 @@
         <h1 class="splash-title">题库答题</h1>
         <p class="splash-sub">选择一个板块，开始今天的学习</p>
         <div class="splash-cards">
-          <button class="splash-card" data-go="shelf" type="button">
+          <button class="splash-card" data-go="home" type="button">
             <span class="splash-emoji">📚</span>
             <span class="splash-text">
               <strong>题库选择</strong>
-              <small>从书架挑选题库，随时开始答题</small>
+              <small>导入题库生成选择题，随时随地开练</small>
             </span>
             <span class="splash-meta" id="splash-shelf-count">0 本书</span>
             <span class="splash-arrow">→</span>
@@ -106,20 +106,6 @@
           <span class="entry-text">
             <strong>错题本</strong>
             <small id="wrong-count">0 题</small>
-          </span>
-        </button>
-        <button id="btn-goto-memo" class="entry-card" type="button">
-          <span class="entry-emoji">📚</span>
-          <span class="entry-text">
-            <strong>背诵板块</strong>
-            <small>框架导图 · 知识卡片</small>
-          </span>
-        </button>
-        <button id="btn-goto-cloze" class="entry-card" type="button">
-          <span class="entry-emoji">✏️</span>
-          <span class="entry-text">
-            <strong>知识点挖空</strong>
-            <small>导入资料 · 自动挖空 · 填空题</small>
           </span>
         </button>
       </div>

@@ -304,7 +304,16 @@
   }
 
   function updateNav(name) {
-    const map = { splash: "splash", shelf: "shelf", cloze: "cloze", memorize: "memo" };
+    const map = {
+      splash: "splash",
+      home: "home",
+      shelf: "home",
+      wrongbook: "home",
+      quiz: "home",
+      result: "home",
+      cloze: "cloze",
+      memorize: "memo"
+    };
     const active = map[name] || "";
     document.querySelectorAll(".nav-tab").forEach((t) => {
       t.classList.toggle("active", t.dataset.go === active);
@@ -330,6 +339,10 @@
 
   function goSection(name) {
     if (name === "splash") showSplash();
+    else if (name === "home") {
+      updateCounts();
+      showView("home");
+    }
     else if (name === "shelf") {
       renderShelf();
       updateCounts();
@@ -1851,7 +1864,6 @@
   });
   $("btn-cloze-done").addEventListener("click", exitClozePractice);
 
-  $("btn-goto-cloze").addEventListener("click", enterCloze);
   $("btn-cloze-home").addEventListener("click", () => showSplash());
   document.querySelectorAll(".cloze-tab").forEach((t) => {
     t.addEventListener("click", () => switchClozeTab(t.dataset.clozeTab));
@@ -2664,7 +2676,6 @@
     memoSelectLeaf(memoLeaves[0]);
   }
 
-  $("btn-goto-memo").addEventListener("click", () => showView("memorize"));
   $("btn-memo-home").addEventListener("click", () => showSplash());
   $("memo-expand-all").addEventListener("click", () => {
     document.querySelectorAll(".memo-children").forEach((w) => w.classList.remove("collapsed"));
