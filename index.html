@@ -13,6 +13,45 @@
 
   <div id="app">
 
+    <!-- ======= 开屏导航 ======= -->
+    <section id="splash-view" class="view splash-view">
+      <div class="splash-inner">
+        <p class="badge">本地题库 · 错题本 · 书架 · 挖空</p>
+        <h1 class="splash-title">题库答题</h1>
+        <p class="splash-sub">选择一个板块，开始今天的学习</p>
+        <div class="splash-cards">
+          <button class="splash-card" data-go="shelf" type="button">
+            <span class="splash-emoji">📚</span>
+            <span class="splash-text">
+              <strong>题库选择</strong>
+              <small>从书架挑选题库，随时开始答题</small>
+            </span>
+            <span class="splash-meta" id="splash-shelf-count">0 本书</span>
+            <span class="splash-arrow">→</span>
+          </button>
+          <button class="splash-card" data-go="cloze" type="button">
+            <span class="splash-emoji">✏️</span>
+            <span class="splash-text">
+              <strong>题库填空</strong>
+              <small>导入资料自动挖空，把重点变成填空题</small>
+            </span>
+            <span class="splash-meta" id="splash-cloze-count">0 本挖空</span>
+            <span class="splash-arrow">→</span>
+          </button>
+          <button class="splash-card" data-go="memo" type="button">
+            <span class="splash-emoji">🧠</span>
+            <span class="splash-text">
+              <strong>框架背诵</strong>
+              <small>框架导图 + 知识卡片，背熟名词解释与论述</small>
+            </span>
+            <span class="splash-meta" id="splash-memo-count">0 个知识点</span>
+            <span class="splash-arrow">→</span>
+          </button>
+        </div>
+        <button id="btn-splash-home" class="splash-home-link" type="button">题库首页 · 导入题库 / 备份数据 →</button>
+      </div>
+    </section>
+
     <!-- ======= 首页：导入题库 ======= -->
     <section id="home-view" class="view">
       <div class="hero">
@@ -39,6 +78,7 @@
         <button id="btn-sample" class="btn btn-primary" type="button">试试示例题库</button>
         <button id="btn-weekly" class="btn btn-ghost" type="button">周测组卷</button>
         <button id="btn-paste" class="btn btn-ghost" type="button">粘贴题目文本</button>
+        <button id="btn-home-splash" class="btn btn-ghost" type="button">开屏首页</button>
         <label class="shuffle-toggle">
           <input type="checkbox" id="shuffle-options" /> 打乱选项顺序
         </label>

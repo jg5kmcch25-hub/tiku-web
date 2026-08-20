@@ -3,6 +3,7 @@
 
   const $ = (id) => document.getElementById(id);
   const VIEWS = {
+    splash: "splash-view",
     home: "home-view",
     shelf: "shelf-view",
     wrongbook: "wrongbook-view",
@@ -301,6 +302,43 @@
     document.body.classList.toggle("in-quiz", name === "quiz");
     $("btn-switch").textContent = name === "memorize" ? "" : "📚 背诵板块";
   }
+
+  /* ============ 开屏导航 ============ */
+  function countMemoLeaves() {
+    let n = 0;
+    (function walk(node) {
+      if (node && Array.isArray(node.c) && node.c.length) node.c.forEach(walk);
+      else n++;
+    })(MEMO_TREE);
+    return n;
+  }
+
+  function showSplash() {
+    $("splash-shelf-count").textContent = loadBooks().length + " 本书";
+    $("splash-cloze-count").textContent = clozeLoadBooks().length + " 本挖空";
+    $("splash-memo-count").textContent = countMemoLeaves() + " 个知识点";
+    showView("splash");
+  }
+
+  document.querySelectorAll(".splash-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const go = card.dataset.go;
+      if (go === "shelf") {
+        renderShelf();
+        updateCounts();
+        showView("shelf");
+      } else if (go === "cloze") {
+        enterCloze();
+      } else if (go === "memo") {
+        showView("memorize");
+      }
+    });
+  });
+  $("btn-splash-home").addEventListener("click", () => {
+    updateCounts();
+    showView("home");
+  });
+  $("btn-home-splash").addEventListener("click", showSplash);
 
   /* ============ 首页：文件导入 ============ */
   const dropZone = $("drop-zone");
@@ -667,7 +705,7 @@
   });
   $("btn-shelf-home").addEventListener("click", () => {
     updateCounts();
-    showView("home");
+    showSplash();
   });
   $("btn-shelf-import").addEventListener("click", () => {
     showView("home");
@@ -983,7 +1021,7 @@
   });
   $("btn-wrong-home").addEventListener("click", () => {
     updateCounts();
-    showView("home");
+    showSplash();
   });
   $("btn-goto-wrongbook").addEventListener("click", () => {
     renderWrongBook();
@@ -1800,7 +1838,7 @@
   $("btn-cloze-done").addEventListener("click", exitClozePractice);
 
   $("btn-goto-cloze").addEventListener("click", enterCloze);
-  $("btn-cloze-home").addEventListener("click", () => showView("home"));
+  $("btn-cloze-home").addEventListener("click", () => showSplash());
   document.querySelectorAll(".cloze-tab").forEach((t) => {
     t.addEventListener("click", () => switchClozeTab(t.dataset.clozeTab));
   });
@@ -2262,7 +2300,7 @@
   $("btn-quit").addEventListener("click", () => {
     if (confirm("确定要退出当前答题吗？")) {
       updateCounts();
-      showView("home");
+      showSplash();
     }
   });
 
@@ -2614,7 +2652,7 @@
 
   $("btn-goto-memo").addEventListener("click", () => showView("memorize"));
   $("btn-switch").addEventListener("click", () => showView("memorize"));
-  $("btn-memo-home").addEventListener("click", () => showView("home"));
+  $("btn-memo-home").addEventListener("click", () => showSplash());
   $("memo-expand-all").addEventListener("click", () => {
     document.querySelectorAll(".memo-children").forEach((w) => w.classList.remove("collapsed"));
     document.querySelectorAll(".memo-chev").forEach((c) => c.classList.add("open"));
@@ -2829,7 +2867,7 @@
     savedTheme = localStorage.getItem("quiz_theme_v1");
   } catch (e) {}
   applyTheme(savedTheme && THEME_NAMES[savedTheme] ? savedTheme : "pink");
-  showView("home");
+  showSplash();
   updateCounts();
   updateClozeCount();
 

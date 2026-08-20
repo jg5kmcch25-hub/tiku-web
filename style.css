@@ -225,6 +225,128 @@ body::before {
 .view.active { display: block; animation: fadeUp .32s ease both; }
 .hidden { display: none !important; }
 
+/* ---------- 开屏导航 ---------- */
+.splash-view.active { animation: splashFade .55s ease both; }
+.splash-inner {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 34px 0 10px;
+  text-align: center;
+}
+.splash-title {
+  margin: 0 0 8px;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.15;
+  background: var(--grad-title);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: splashUp .5s ease both;
+}
+.splash-sub {
+  margin: 0 0 30px;
+  color: var(--muted);
+  font-size: 15px;
+  letter-spacing: .3px;
+  animation: splashUp .5s .08s ease both;
+}
+.splash-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+.splash-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+  animation: splashUp .5s ease both;
+}
+.splash-card:nth-child(1) { animation-delay: .16s; }
+.splash-card:nth-child(2) { animation-delay: .28s; }
+.splash-card:nth-child(3) { animation-delay: .40s; }
+.splash-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: var(--shadow-md);
+}
+.splash-emoji {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+  background: var(--accent-soft);
+}
+.splash-card:nth-child(2) .splash-emoji { background: var(--rose-bg); }
+.splash-card:nth-child(3) .splash-emoji { background: #e7efe8; }
+.splash-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.splash-text strong { font-size: 17px; font-weight: 700; }
+.splash-text small {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.splash-meta {
+  flex: none;
+  font-size: 11px;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border-radius: 99px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.splash-arrow {
+  flex: none;
+  color: var(--accent);
+  font-size: 18px;
+  transition: transform .2s;
+}
+.splash-card:hover .splash-arrow { transform: translateX(5px); }
+.splash-home-link {
+  margin-top: 26px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 8px 12px;
+  transition: color .15s;
+}
+.splash-home-link:hover { color: var(--accent-deep); }
+
+@keyframes splashFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes splashUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
@@ -1442,6 +1564,8 @@ body.in-memo #theme-toggle {
   .cloze-badge,
   .cloze-review { display: none; }
   .cloze-topbar { padding: 8px 0 12px; }
+  .splash-title { font-size: 34px; }
+  .splash-meta { display: none; }
 }
 
 .memorize-view {
