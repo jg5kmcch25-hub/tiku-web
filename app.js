@@ -1963,6 +1963,9 @@
     const questions = [];
     const answerMap = {}; // 题号 -> 答案字母（来自文末答案表）
     const explanationMap = {}; // 题号 -> 解析（来自文末“解析：”区）
+    const answerBlocks = {}; // 题号 -> { answer, explanation }（来自逐题“1. A / 解析：…”）
+    let answerBlockNum = 0;
+    let inAnswerBlockExplain = false;
     let cur = null;
     let globalExplain = false; // 是否处于文末“解析：”区域
     let lastExplainNum = 0;
@@ -1979,6 +1982,12 @@
       return true;
     }
 
+    function nextNonEmptyLine(i) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j]) j++;
+      return j < lines.length ? lines[j] : "";
+    }
+
     // 收集题目（文末答案可能还没读到，稍后统一补全）
     function finishCurrent() {
       if (cur && cur.question && Object.keys(cur.options).length >= 2) {
@@ -1990,6 +1999,21 @@
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line) continue;
+
+      // “1. A / 解析：…” 逐题答案+解析格式：记入按题号的答案区块
+      const singleAnswerMatch = line.match(/^\s*(\d+)\s*[.、．]\s*([A-Da-d])\s*$/i);
+      if (
+        singleAnswerMatch &&
+        /^(?:解析|详解|答案分析|explanation|note)\s*[:：]/i.test(nextNonEmptyLine(i))
+      ) {
+        answerBlockNum = parseInt(singleAnswerMatch[1], 10);
+        answerBlocks[answerBlockNum] = {
+          answer: singleAnswerMatch[2].toUpperCase(),
+          explanation: []
+        };
+        inAnswerBlockExplain = false;
+        continue;
+      }
 
       // 文末答案表（“1. D  2. C …”）或纯字母答案行（“D C B A”）
       if (tryParseAnswerRow(line)) continue;
@@ -2043,6 +2067,23 @@
       // 分隔线（===== 等）：一题结束
       if (/^[=\-*]{3,}$/.test(line)) {
         finishCurrent();
+        continue;
+      }
+
+      // “答案与解析（TXT格式）”这类区块标题：结束当前题
+      if (/答案.{0,4}解析|解析.{0,4}答案/.test(line) && !/^\s*\d/.test(line)) {
+        finishCurrent();
+        continue;
+      }
+
+      // 逐题答案区块里“解析：”后面的续行
+      if (
+        answerBlockNum &&
+        inAnswerBlockExplain &&
+        !/^\s*\d+\s*[.、．]/.test(line) &&
+        !/^(?:选项)?[A-D]\s*[:：.、．)）]/.test(line)
+      ) {
+        answerBlocks[answerBlockNum].explanation.push(line);
         continue;
       }
 
@@ -2114,8 +2155,14 @@
       // 解析行
       m = line.match(/^(?:解析|详解|解释|答案分析|explanation|note)\s*[:：]\s*(.*)$/i);
       if (m) {
-        cur.inExplanation = true;
-        if (m[1]) cur.explanation.push(m[1]);
+        if (answerBlockNum && answerBlocks[answerBlockNum]) {
+          if (m[1]) answerBlocks[answerBlockNum].explanation.push(m[1]);
+          inAnswerBlockExplain = true;
+        } else {
+          cur.inExplanation = true;
+          if (m[1]) cur.explanation.push(m[1]);
+          inAnswerBlockExplain = false;
+        }
         continue;
       }
 
@@ -2130,13 +2177,15 @@
 
     finishCurrent();
 
-    // 用文末答案表 / 解析区补全题目
+    // 用文末答案表 / 解析区 / 逐题答案区块补全题目
     const filled = [];
     questions.forEach((q) => {
+      const block = q.number ? answerBlocks[q.number] : null;
       const letter =
-        q.answerRaw && /^[A-D]$/i.test(q.answerRaw)
-          ? q.answerRaw.toUpperCase()
-          : ((q.number ? answerMap[q.number] : "") || "");
+        (q.answerRaw && /^[A-D]$/i.test(q.answerRaw) ? q.answerRaw.toUpperCase() : "") ||
+        (block && block.answer) ||
+        (q.number ? answerMap[q.number] : "") ||
+        "";
       if (!/^[A-D]$/.test(letter)) return;
       const options = ["A", "B", "C", "D"]
         .map((k) => q.options[k])
@@ -2144,6 +2193,7 @@
       const explanation = [
         q.meta || "",
         q.explanation.join("\n"),
+        block && block.explanation.length ? block.explanation.join("\n") : "",
         (q.number ? explanationMap[q.number] : "") || ""
       ]
         .filter(Boolean)
